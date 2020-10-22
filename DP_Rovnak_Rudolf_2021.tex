@@ -58,6 +58,47 @@
 \chapter{State-of-the-art}
 
 \chapter{Analysis and design}
+\section{SOM design and features}
+\begin{itemize}
+	\item Data types: Integer, Char/String, (Boolean, Float)
+	\item Basic arithmethics (boolean arithmethics?)
+	\item Bitwise operations
+	\item Classes - fields, methods, single inheritance, dynamic dispatch (late binding)
+\end{itemize}
+
+\section{Parsing}
+TBD, use parser generator (ANTLR)?
+
+\section{Interpretation}
+Multiple approaches, varying in difficulty of implementation, speed \ldots
+\subsection{AST interpretation}
+Easier implementation, but quite inneffective.
+\begin{itemize}
+	\item Changes to AST require changes to interpreter.
+	\item Not effective - speed, memory requirements.
+\end{itemize}
+
+\subsection{Bytecode interpretation}
+Using a form of bytecode. Effective, requires:
+\begin{itemize}
+	\item designing the bytecode (instructions, bytecode file formats),
+	\item AST to bytecode translation (AST -> bytecode instructions),
+	\item actual bytecode interpretation.
+\end{itemize}
+Bytecode interpretation permits easier optimization.
+
+\section{Optimization}
+\begin{itemize}
+	\item dead code elimination,
+	\item constant propagation,
+	\item others\ldots
+\end{itemize}
+
+\section{Virtual Machine}
+Decide on memory hierarchy, garbage collection\ldots
+
+\subsection{Garbage collection}
+
 
 \chapter{Realisation}
 
