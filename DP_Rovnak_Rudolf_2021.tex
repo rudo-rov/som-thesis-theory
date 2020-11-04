@@ -3,13 +3,6 @@
 % arara: xelatex
 
 
-% options:
-% thesis=B bachelor's thesis
-% thesis=M master's thesis
-% czech thesis in Czech language
-% english thesis in English language
-% hidelinks remove colour boxes around hyperlinks
-
 \documentclass[thesis=M,english]{FITthesis}[2019/12/23]
 
 %\usepackage[utf8]{inputenc} % LaTeX source encoded as UTF-8
@@ -21,14 +14,15 @@
 % \usepackage{amssymb} %additional math symbols
 
 \usepackage{dirtree} %directory tree visualisation
+\usepackage{url}
 
 % % list of acronyms
 % \usepackage[acronym,nonumberlist,toc,numberedsection=autolabel]{glossaries}
 % \iflanguage{czech}{\renewcommand*{\acronymname}{Seznam pou{\v z}it{\' y}ch zkratek}}{}
 % \makeglossaries
 
-\department{Department of \ldots (SPECIFY)}
-\title{Thesis title (SPECIFY)}
+\department{Department of Theoretical Computer Science}
+\title{SimpleObjectMachine implementation}
 \authorGN{Rudolf} %author's given name/names
 \authorFN{Rovňák} %author's surname
 \author{Rudolf Rovňák} %author's name without academic degrees
@@ -70,12 +64,29 @@
 TBD, use parser generator (ANTLR)?
 
 \section{Interpretation}
-Multiple approaches, varying in difficulty of implementation, speed \ldots
+Once the source code is parsed, the next step is executing it -- this step is called \textit{interpretation}. Interpretation is
+As per \cite{wolczko-02-ast-interpret}, an interpreter for a language L can be defined as a mechanism for the direct execution of all programs
+from L. It executes each element of the program without reference to other elements.
+
+It is however very rare that any language is interpreted directly. In most cases of non-trivial languages, the interpretation process
+is preceeded by parsing or compiling into some form of \textit{intermediate representation}. According to \cite{wolczko-02-ast-interpret},
+this process removes lexical noise (comments, formating), elements can be abstracted/combined (into keywords, operations etc.) and reordered
+into execution order (for example operators in an algebraic expression).
+
+The choice of intermediate representation is therefore vital. It can determine a lot of aspects of interpretation - from the way of distributing
+the interpreted program to time and space complexity of the interpreter.
+
 \subsection{AST interpretation}
-Easier implementation, but quite inneffective.
+\textit{Abstract syntax tree (AST) is a tree representation of the source code of a computer program that conveys the structure of the source code.
+Each node in the tree represents a construct occuring in the source code }\cite{deepsource-ast}.
+
+As the name suggests, AST represents the source code in the form of a tree. During the transformation from the source code to AST, some information
+is ommitted. Information that is vital for AST's according to \cite{deepsource-ast} is:
 \begin{itemize}
-	\item Changes to AST require changes to interpreter.
-	\item Not effective - speed, memory requirements.
+	\item variables -- their types, location of their definition/declaration,
+	\item order of commands/operations,
+	\item components of operators and their position (for example left and right operands for a binary operator),
+	\item identifiers and corresponding values.
 \end{itemize}
 
 \subsection{Bytecode interpretation}
@@ -115,8 +126,7 @@ Decide on memory hierarchy, garbage collection\ldots
 \chapter{Acronyms}
 % \printglossaries
 \begin{description}
-	\item[GUI] Graphical user interface
-	\item[XML] Extensible markup language
+	\item[AST] Abstract syntax tree
 \end{description}
 
 
