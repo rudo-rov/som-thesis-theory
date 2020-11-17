@@ -15,6 +15,7 @@
 
 \usepackage{dirtree} %directory tree visualisation
 \usepackage{url}
+\input{smalltalkEnv.tex}
 
 % % list of acronyms
 % \usepackage[acronym,nonumberlist,toc,numberedsection=autolabel]{glossaries}
@@ -53,15 +54,45 @@
 
 \chapter{Analysis and design}
 \section{SOM design and features}
+\textit{Simple Object Machine} (SOM) is a minimal Smalltalk dialect used primarily for teaching construction of virtual machines. Key characteristics
+according to official website (\cite{som-github}) are:
 \begin{itemize}
-	\item Data types: Integer, Char/String, (Boolean, Float)
-	\item Basic arithmethics (boolean arithmethics?)
-	\item Bitwise operations
-	\item Classes - fields, methods, single inheritance, dynamic dispatch (late binding)
+	\item clarity of implementation over performance,
+	\item common language features such as: objects, classes, closures, non-local returns
+	\item interpreter optimizations, threading, garbage collectors are different
+		across various implementations.
 \end{itemize}
 
-\section{Parsing}
-TBD, use parser generator (ANTLR)?
+\subsection{Classes}
+Classes are the cornerstone of SOM - in Smalltalk, everything is an object and each object has its class. Classes can contain fields and methods.
+Only single inheritance is supported - given class can only extend one other class. Object methods are dispatched dynamically in SOM and there is
+a keyword to explicitly call a superclass' method. 
+
+SOM implements a non-local return from methods. This gives us the ability to exit the execution of a block (or a closure) to the place where the
+original method calling the block returns.
+
+\subsection{Syntax}
+\begin{lstlisting}[language=Smalltalk]
+MyClass = SuperClass (
+	| field | "Instance side field"
+	
+	foo: arg = primitive "This method is implemented in the VM"
+
+	examples = (
+		| aMethodVariable |
+		1234 "an integer".
+		3.14 "a double".
+		'a string'.
+		"a comment".
+		#aSymbol.
+		aVariable := aVariable := 3 + 4.
+		field select: [:e | e == #bar] "A message  send with a closure"
+		^ aVariable "Return"
+	)
+	----
+	| classField | "Class side field"
+)
+\end{lstlisting}
 
 \section{Interpretation}
 Once the source code is parsed, the next step is executing it -- this step is called \textit{interpretation}. Interpretation is
@@ -109,6 +140,11 @@ Bytecode interpretation permits easier optimization.
 Decide on memory hierarchy, garbage collection\ldots
 
 \subsection{Garbage collection}
+The process of \textit{garbage collection} performed by \textit{garbage collector (GC)} is the process of allocating and freeing
+memory during application runtime. The main advantage of this mechanics is to prevent \textit{memory leaks} -- parts of a program
+that allocate memory without freeing it when it is not needed \cite{memleaks-raygun}. Most modern high-level programming languages
+implement some form of garbage collection.
+
 
 
 \chapter{Realisation}
@@ -127,6 +163,9 @@ Decide on memory hierarchy, garbage collection\ldots
 % \printglossaries
 \begin{description}
 	\item[AST] Abstract syntax tree
+	\item[GC] Garbage collector
+	\item[SOM] Simple Object Machine 
+	\item[VM] Virtual machine 
 \end{description}
 
 
