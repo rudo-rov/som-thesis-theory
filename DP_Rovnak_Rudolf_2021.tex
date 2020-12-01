@@ -63,6 +63,9 @@ according to official website (\cite{som-github}) are:
 		across various implementations.
 \end{itemize}
 
+\subsection{Data types}
+
+
 \subsection{Classes}
 Classes are the cornerstone of SOM - in Smalltalk, everything is an object and each object has its class. Classes can contain fields and methods.
 Only single inheritance is supported - given class can only extend one other class. Object methods are dispatched dynamically in SOM and there is
@@ -71,7 +74,27 @@ a keyword to explicitly call a superclass' method.
 SOM implements a non-local return from methods. This gives us the ability to exit the execution of a block (or a closure) to the place where the
 original method calling the block returns.
 
+\subsection{Class hierarchy}
+As SOM is an object oriented language, everything is represented as an object. To enable more convenient work with classes and objects,
+every class is a subclass of \texttt{Object}. This enables som universal interface to be used.
+
+Protocol of an \texttt{Object} class is:
+\begin{itemize}
+	\item \texttt{class} - returns the class of an object,
+	\item \texttt{=} - value equality comparison,
+	\item \texttt{==} - reference equality comparison,
+	\item \texttt{isNil} - check, if the object is \texttt{nil},
+	\item \texttt{asString} - converts the object into a string,
+	\item \texttt{value} - evaluate (interesting for blocks),
+	\item \texttt{print, println} - prints the object,
+	\item \texttt{error:} - error reporting,
+	\item \texttt{subClassResponsibility} - can be used to indicate the method should be
+		implemented in the subclass of a given class,
+	\item \texttt{doesNotUnderstand:arguments:} - can be used for error handling when a method is not implemented.
+\end{itemize}
+
 \subsection{Syntax}
+Following example summarizes the syntax of SOM programming language:
 \begin{lstlisting}[language=Smalltalk]
 MyClass = SuperClass (
 	| field | "Instance side field"
@@ -93,6 +116,15 @@ MyClass = SuperClass (
 	| classField | "Class side field"
 )
 \end{lstlisting}
+
+Some notable keywords or tokens are:
+\begin{itemize}
+	\item \texttt{self} is used to reference the object the method is from, comparable to C++/Java \texttt{this},
+	\item \texttt{super} is used to reference the superclass of a class,
+	\item \texttt{:=} is used to assign value into a variable/field,
+	\item \texttt{\^} is used for return,
+	\item quotes are used to delimit a comment.
+\end{itemize}
 
 \section{Interpretation}
 Once the source code is parsed, the next step is executing it -- this step is called \textit{interpretation}. Interpretation is
