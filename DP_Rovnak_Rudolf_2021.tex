@@ -45,7 +45,8 @@
 % \newacronym{CVUT}{{\v C}VUT}{{\v C}esk{\' e} vysok{\' e} u{\v c}en{\' i} technick{\' e} v Praze}
 % \newacronym{FIT}{FIT}{Fakulta informa{\v c}n{\' i}ch technologi{\' i}}
 
-\setsecnumdepth{part}
+% \setsecnumdepth{part}
+\setcounter{secnumdepth}{3}
 \chapter{Introduction}
 In the last decades, a trend of dynamic programming languages \footnote{Not to be confused with \textit{dynamically typed programming languages.}} has been on the rise.
 As opposed to static programming languages (usually compiled) dynamic ones offer a higher level of abstraction and allow faster and less error-prone development.
@@ -134,7 +135,7 @@ in this grammar are named in uppercase letters.
 	keywordSelector: KEYWORD+;
 \end{verbatim}
 
-\subsubsection{Class definition}
+\subsection{Class definition}
 \begin{figure}[h!]
 	\centering
 	\includegraphics[width=\textwidth]{media/grammar/classDefinition_rrd.png}
@@ -164,7 +165,7 @@ Declaration of instance side fields follows, denoted by vertical bars. This toke
 are next. Further details on \textit{methods} and \textit{messages} in SOM are discussed in TODO. % TODO: add a link to section on methods
 Same syntax is used for class side fields and methods separated by a special token.
 
-\subsubsection{Methods and messages}
+\subsection{Methods and messages}
 As the SOM language is based on Smalltalk, the concept of messages (and the link to methods) is crucial to understand.
 \textit{"The only way to invoke a method is to send a message -- which necessarily involves dynamic binding
 (by name) of message to method at runtime (and never at compile time). The internals of an object are not
