@@ -15,6 +15,7 @@
 
 \usepackage{dirtree} %directory tree visualisation
 \usepackage{url}
+% \usepackage{svg}
 \input{smalltalkEnv.tex}
 
 % % list of acronyms
@@ -46,11 +47,15 @@
 
 \setsecnumdepth{part}
 \chapter{Introduction}
+In the last decades, a trend of dynamic programming languages \footnote{Not to be confused with \textit{dynamically typed programming languages.}} has been on the rise.
+As opposed to static programming languages (usually compiled) dynamic ones offer a higher level of abstraction and allow faster and less error-prone development.
+Dynamic languages move a lot of actions traditionally done during compile-time to run-time. This creates the need for another layer, \textit{a runtime environment}.
 
+My goal in this diploma thesis is to implement a process virtual machine for a programming language called SOM, or Simple Object Machine. 
+It is a dynamic, object-oriented programming language based on Smalltalk. It was originally implemented at University of Århus in Denmark to teach
+object oriented VMs \cite{som-github}. There are several implementations in various programming languages, ranging in speed, optimizations etc.
 
-
-\setsecnumdepth{all}
-\chapter{State-of-the-art}
+My main focus in my work will be the clarity of implementation over performance. 
 
 \chapter{Analysis and design}
 \section{SOM design and features}
@@ -63,8 +68,170 @@ according to official website (\cite{som-github}) are:
 		across various implementations.
 \end{itemize}
 
-\subsection{Data types}
+\subsection{Grammar}
+To implement a parser for the language, I decided to use ANTLR. I will demonstrate language features and design on the following ANTLR grammar
+for SOM. For the sake of brevity, I ommited terminal symbols from the complete grammar as they are self-explanatory. All the terminal symbols
+in this grammar are named in uppercase letters.
 
+\begin{verbatim}
+	grammar SOM;
+
+	classDefinition:
+		IDENTIFIER EQUALS superclass
+		instanceFields method*
+		(SEPARATOR classFields method*) ?
+		CLOSE_PAR
+	;
+	superclass: IDENTIFIER? OPEN_PAR;
+	instanceFields: (VBAR variable* VBAR)?;
+	classFields: (VBAR variable* VBAR)?;
+	method: pattern EQUALS methodBlock;
+	methodBlock: OPEN_PAR blockContents? CLOSE_PAR;
+	blockContents:
+		(VBAR localDefinitions VBAR)?
+		blockBody;
+	localDefinitions: variable*;
+	blockBody: 
+		  RETURN result
+		| expression (PERIOD blockBody?)?;
+	result: expression PERIOD?;
+	expression: assignation | evaluation;
+	assignation: assignments evaluation;
+	assignments: assignment+;
+	assignment: variable ASSIGN;
+	evaluation: primary messages?;
+	primary: variable | nestedTerm | nestedBlock | literal;
+	messages:
+		  unaryMessage+ binaryMessage* keywordMessage?
+		| binaryMessage+ keywordMessage?
+		| keywordMessage;
+	unaryMessage: IDENTIFIER;
+	binaryMessage: binarySelector binaryOperand;
+	binaryOperand: primary unaryMessage*;
+	keywordMessage: (KEYWORD formula)+;
+	formula: binaryOperand binaryMessage*;
+	nestedTerm: OPEN_PAR expression CLOSE_PAR;
+	nestedBlock:
+		NEW_BLOCK blockPattern? blockContents? CLOSE_BLOCK;
+	blockPattern: blockArgs VBAR;
+	blockArgs: (COLON argument)+;
+	variable: IDENTIFIER;
+	pattern: unaryPattern | keywordPattern | binaryPattern;
+	unaryPattern: unarySelector;
+	unarySelector: IDENTIFIER;
+	binaryPattern: binarySelector argument;
+	keywordPattern: (KEYWORD argument)+;
+	binarySelector: 
+		VBAR | PLUS | MINUS | EQUALS | MULT | DIV | MOD |
+		GREATER | GREATER_EQ | LESS | LESS_EQ;
+	argument: variable;
+	literal: literalNumber | literalString | literalArray | literalSymbol;
+	literalNumber: MINUS? (INTEGER | DOUBLE);
+	literalString: STRING;
+	literalArray: POUND NEW_BLOCK literal* CLOSE_BLOCK;
+	literalSymbol: POUND (STRING | selector);
+	selector: binarySelector | keywordSelector | unarySelector;
+	keywordSelector: KEYWORD+;
+\end{verbatim}
+
+\subsubsection{Class definition}
+\begin{figure}[h!]
+	\centering
+	\includegraphics[width=\textwidth]{media/grammar/classDefinition_rrd.png}
+	\caption{Railroad diagram for \texttt{classDefinition} rule.}
+	\label{fig:classDefinition_rrd}
+\end{figure}
+
+\begin{lstlisting}[language=Smalltalk]
+	SimpleHello = (
+		| name |
+
+		setName: aString (
+			name := aString
+		)
+
+		printGreeting (
+			('Hello, ', name) print
+		)
+	)
+\end{lstlisting}
+
+Syntax for class definition follows the official SOM grammar. The language supports single inheritance as apparent from the use
+of \texttt{subclass} token in the grammar. Not every class has explicitly specified superclass, therefore the actual identifier in
+the rule is optional.
+
+Declaration of instance side fields follows, denoted by vertical bars. This token itself can be empty. Instance side methods definitions
+are next. Further details on \textit{methods} and \textit{messages} in SOM are discussed in TODO. % TODO: add a link to section on methods
+Same syntax is used for class side fields and methods separated by a special token.
+
+\subsubsection{Methods and messages}
+As the SOM language is based on Smalltalk, the concept of messages (and the link to methods) is crucial to understand.
+\textit{"The only way to invoke a method is to send a message -- which necessarily involves dynamic binding
+(by name) of message to method at runtime (and never at compile time). The internals of an object are not
+externally accessible, ever -- the only way to access or modify an object's internal state is to send it
+a message} \cite{smalltalk-essentials}.
+
+The \cite{pharo-by-example} defines a helpful terminology for message passing:
+\begin{itemize}
+	\item A message is composed of the message \textit{selector} and the optional message arguments.
+	\item Every message must be sent to its \textit{receiver}.
+	\item Message and its receiver together will be referred to as \textit{message send}.
+\end{itemize}
+
+There are three types of messages (as defined in other Smalltalk dialects, Pharo as an example of one).
+
+\textbf{Unary messages} are sent to an object without any additional information (argument). In the following
+example, a unary message \texttt{size} is sent to a string object.
+\begin{lstlisting}[language=Smalltalk]
+	'hello' size "Evaluates to 5"
+\end{lstlisting}
+
+\textbf{Binary messages} are a special type of messages that require exactly one argument. The selector
+of a binary message can only consist of a sequence of one or more characters from the set: +, -, *, /,
+\&, =, \textless, \textgreater, |, ~ and @. A very simple example of usage of binary messsage are arithmetic operations.
+\begin{lstlisting}[language=Smalltalk]
+	3 + 4 "Evaluates to 7"
+\end{lstlisting}
+
+\textbf{Keyword messages} require one or more arguments. From the syntactic standpoint, they consist of
+multiple keywords, each ending in colon (:). When sending a message, each keyword is followed by an argument.
+Note, that a keyword message taking one argument is different to a binary message.
+\begin{lstlisting}[language=Smalltalk]
+	| numbers |
+	numbers := #(1 2 3 4 5). "Simple array"
+	"Sending a keyword message at:put: to an object of class Array"
+	numbers at: 1 put: 6 "numbers is now #(6 2 3 4 5)"
+\end{lstlisting}
+
+When composing messages of various types, there are precedence rules (as defined for Pharo in \cite{pharo-by-example}):
+\begin{itemize}
+	\item Unary messages are sent first, followed by binary messages. Keyword messages are sent last.
+	\item Messages in parentheses are sent before other messages.
+	\item Messages of the same kind are evaluated from left to right.
+\end{itemize}
+
+These simple rules permit a very natural way of sending messages, as demonstrated on the next example.
+First, a simple array is created. Then, a unary message \texttt{last} is evaluated, returning the last
+element of the array. After that, binary message \texttt{+} is evaluated (to 2 in this example). Finally,
+keyword message \texttt{at:put:} is sent to an array, putting number 5 on the second position in an array.
+\begin{lstlisting}[language=Smalltalk]
+	| numbers |
+	numbers := #(1 2 3 4 5).
+	numbers at: 1 + 1 put: numbers last.
+	"numbers at: (1 + 1) put: (numbers last)"
+\end{lstlisting}
+
+Next example demonstrates sending messages from left to right when all of them are of the same type.
+\begin{lstlisting}[language=Smalltalk]
+	| numbers |
+	numbers := #(1 2 3 4 5)
+	numbers last asString print
+	"This is equivalent to the following message sends"
+	((numbers last) asString) print
+\end{lstlisting}
+
+There is a downfall to the simplicity of these rules. Arithmethic operations are all just a simple binary
+message sends, therefore to ensure proper precedence, it is necessary to use parentheses.
 
 \subsection{Classes}
 Classes are the cornerstone of SOM - in Smalltalk, everything is an object and each object has its class. Classes can contain fields and methods.
