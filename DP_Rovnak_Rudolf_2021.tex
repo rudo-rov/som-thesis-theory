@@ -172,6 +172,10 @@ As the SOM language is based on Smalltalk, the concept of messages (and the link
 externally accessible, ever -- the only way to access or modify an object's internal state is to send it
 a message} \cite{smalltalk-essentials}.
 
+Execution of an invoked method ends with the execution of the last expression in it. Every method implicitly
+returns \texttt{self} (a reference to the object on which the method is invoked). Explicit return of a value
+is done with a special token \texttt{\^}. Execution of an expression preceeded by this token will exit the method.
+
 The \cite{pharo-by-example} defines a helpful terminology for message passing:
 \begin{itemize}
 	\item A message is composed of the message \textit{selector} and the optional message arguments.
@@ -233,6 +237,49 @@ Next example demonstrates sending messages from left to right when all of them a
 
 There is a downfall to the simplicity of these rules. Arithmethic operations are all just a simple binary
 message sends, therefore to ensure proper precedence, it is necessary to use parentheses.
+
+\subsection{Blocks}
+Blocks provide a mechanism to defer the execution of expressions \cite{pharo-by-example}.
+Blocks can be treated as an object -- they can be assigned to variables and
+passed as arguments. 
+
+Blocks can also accept parameters -- they are denoted with a leading colon. Parameters are separated from the body
+of the block by a vertical bar. Local variables can also be declared inside a block.
+
+Block is executed by sending it a message \texttt{value}. However, this is a unary message and there is no way
+to pass parameters to a block. To solve this problem, a keyword message \texttt{value:} is implemented. So far, this
+gives a user to pass only one parameter to a block. To mitigate this issue, there are two posibilities. The first one
+is to implement a keyword message for every number of parameters (for example \texttt{value:value:}, 
+\texttt{value:value:value:}). While this approach is simple, readable and relatively easy to implement for low
+numbers of parameters, it is impossible for this solution to be exhaustive and the code using very long keyword
+messages would be bloated.
+
+Another approach would be to implement a keyword message \texttt{value:} with an argument of array type. This would
+permit to use arbitrary number of arguments, though it would require to create arrays of objects before passing them
+to a block, which could impact readability and clarity of the code. In order to combine pros and cons of these 2
+approaches, I have decided to follow the implementation in Pharo according to \cite[p.~65]{pharo-by-example}. 
+There are keyword methods implemented for up to four parameters (\texttt{value:}, \texttt{value:value:}). For more
+than four parameters, a special keyword message \texttt{valueWithArguments:} is implemented, where an array of
+parameters is expected.
+
+\begin{figure}
+	\caption{Example of blocks usage in SOM.}
+	\begin{lstlisting}[language=Smalltalk]
+		| b0 b1 b2 b3 |
+		b0 := [ 1 + 2 ].
+		b1 := [ :x | x * x ].
+		b2 := [ :x :y | x * y ].
+		b3 := [ :x :y :z | x + y + z ].
+		"Evaluating the blocks"
+		b0 value. "Returns 3"
+		b1 value: 3. "Returns 9"
+		b2 value: 2 value: 8. "Returns 16"
+		"Message valueWithArguments: can be used with any number of parameters"
+		b3 valueWithArguments: #(1 2 3). "Returns 6
+		"The next expression is functionally identical to the previous one"
+		b3 value: 1 value: 2 value: 3.
+	\end{lstlisting}
+\end{figure}
 
 \subsection{Classes}
 Classes are the cornerstone of SOM - in Smalltalk, everything is an object and each object has its class. Classes can contain fields and methods.
