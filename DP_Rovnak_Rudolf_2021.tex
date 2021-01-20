@@ -165,6 +165,16 @@ Declaration of instance side fields follows, denoted by vertical bars. This toke
 are next. Further details on \textit{methods} and \textit{messages} in SOM are discussed in TODO. % TODO: add a link to section on methods
 Same syntax is used for class side fields and methods separated by a special token.
 
+\subsection{Primitives}
+Even though SOM is purely object oriented, in order toto get any actual computations done, there is a point where
+some virtual machine primitives must be invoked. Following things are therefore implemented as primitives:
+\begin{itemize}
+	\item memory allocation (\texttt{new} message),
+	\item bitwise operations,
+	\item integer arithmethics (\texttt{+}, \texttt{-}, \texttt{=} etc.),
+	\item array accessing (\texttt{at:}, \texttt{at:put:})
+\end{itemize}
+
 \subsection{Methods and messages}
 As the SOM language is based on Smalltalk, the concept of messages (and the link to methods) is crucial to understand.
 \textit{"The only way to invoke a method is to send a message -- which necessarily involves dynamic binding
@@ -280,6 +290,34 @@ parameters is expected.
 		b3 value: 1 value: 2 value: 3.
 	\end{lstlisting}
 \end{figure}
+
+\subsection{Expressions}
+According to \cite{smalltalk-essentials}, \textit{an expression is a segment of code in a body of executable code
+that can be evaluated to yield a value as a result of its execution.} As seen from the grammar snippet on figure
+TODO, expressions are recursive structures.
+
+\begin{figure}
+	\begin{verbatim}
+	expression: assignation | evaluation;
+	assignation: assignments evaluation;
+	assignments: assignment+;
+	assignment: variable ASSIGN;
+	evaluation: primary messages?;
+	primary: variable | nestedTerm | nestedBlock | literal;
+	messages:
+		  unaryMessage+ binaryMessage* keywordMessage?
+		| binaryMessage+ keywordMessage?
+		| keywordMessage;
+	\end{verbatim}
+\end{figure}
+
+Syntactically, an expression can consist of \cite{smalltalk-essentials}:
+\begin{itemize}
+	\item literal,
+	\item variable/constant reference,
+	\item message send,
+	\item nested expression.
+\end{itemize}
 
 \subsection{Classes}
 Classes are the cornerstone of SOM - in Smalltalk, everything is an object and each object has its class. Classes can contain fields and methods.
