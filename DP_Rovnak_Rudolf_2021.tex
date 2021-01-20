@@ -59,7 +59,6 @@ object oriented VMs \cite{som-github}. There are several implementations in vari
 My main focus in my work will be the clarity of implementation over performance. 
 
 \chapter{Analysis and design}
-\section{SOM design and features}
 \textit{Simple Object Machine} (SOM) is a minimal Smalltalk dialect used primarily for teaching construction of virtual machines. Key characteristics
 according to official website (\cite{som-github}) are:
 \begin{itemize}
@@ -69,7 +68,7 @@ according to official website (\cite{som-github}) are:
 		across various implementations.
 \end{itemize}
 
-\subsection{Grammar}
+\section{Grammar}
 To implement a parser for the language, I decided to use ANTLR. I will demonstrate language features and design on the following ANTLR grammar
 for SOM. For the sake of brevity, I ommited terminal symbols from the complete grammar as they are self-explanatory. All the terminal symbols
 in this grammar are named in uppercase letters.
@@ -135,7 +134,7 @@ in this grammar are named in uppercase letters.
 	keywordSelector: KEYWORD+;
 \end{verbatim}
 
-\subsection{Class definition}
+\section{Class definition}
 \begin{figure}[h!]
 	\centering
 	\includegraphics[width=\textwidth]{media/grammar/classDefinition_rrd.png}
@@ -165,7 +164,7 @@ Declaration of instance side fields follows, denoted by vertical bars. This toke
 are next. Further details on \textit{methods} and \textit{messages} in SOM are discussed in TODO. % TODO: add a link to section on methods
 Same syntax is used for class side fields and methods separated by a special token.
 
-\subsection{Primitives}
+\section{Primitives}
 Even though SOM is purely object oriented, in order toto get any actual computations done, there is a point where
 some virtual machine primitives must be invoked. Following things are therefore implemented as primitives:
 \begin{itemize}
@@ -175,7 +174,7 @@ some virtual machine primitives must be invoked. Following things are therefore 
 	\item array accessing (\texttt{at:}, \texttt{at:put:})
 \end{itemize}
 
-\subsection{Methods and messages}
+\section{Methods and messages}
 As the SOM language is based on Smalltalk, the concept of messages (and the link to methods) is crucial to understand.
 \textit{"The only way to invoke a method is to send a message -- which necessarily involves dynamic binding
 (by name) of message to method at runtime (and never at compile time). The internals of an object are not
@@ -248,7 +247,7 @@ Next example demonstrates sending messages from left to right when all of them a
 There is a downfall to the simplicity of these rules. Arithmethic operations are all just a simple binary
 message sends, therefore to ensure proper precedence, it is necessary to use parentheses.
 
-\subsection{Blocks}
+\section{Blocks}
 Blocks provide a mechanism to defer the execution of expressions \cite{pharo-by-example}.
 Blocks can be treated as an object -- they can be assigned to variables and
 passed as arguments. 
@@ -291,7 +290,7 @@ parameters is expected.
 	\end{lstlisting}
 \end{figure}
 
-\subsection{Expressions}
+\section{Expressions}
 According to \cite{smalltalk-essentials}, \textit{an expression is a segment of code in a body of executable code
 that can be evaluated to yield a value as a result of its execution.} As seen from the grammar snippet on figure
 TODO, expressions are recursive structures.
@@ -319,6 +318,73 @@ Syntactically, an expression can consist of \cite{smalltalk-essentials}:
 	\item nested expression.
 \end{itemize}
 
+\section{Control structures}
+In Smalltalk, there are no built-in control structures, unlike for example C++ or Java. SOM follows this principle
+from Smalltalk, therefore there are no grammatical rules for branching or loops.
+
+The way controlling the flow of program works in SOM is, again, by sending messages. One big advantage of this 
+approach is that the programmer can define their own control structures, simply by implementing classes and
+methods as needed.
+
+To make working with SOM easier and faster, my implementation provides multiple message implementations, 
+corresponding to the most used control structures in other programming languages. Syntax of these messages
+corresponds to other Smalltalk dialects.
+
+\subsection{Conditional branching}
+There are 3 messages that function as an if control structure. Selectors for these messages are \texttt{ifTrue:},
+\texttt{ifFalse:}, \texttt{ifTrue:ifFalse:}. As apparent, they are keyword messages, the receiver is an instance of
+a Boolean class. All of these messages take blocks as arguments, then evaluating or not evaluating them based on
+the Boolean value. Figure \ref{lst-if-control} shows a simple example of usage.
+
+\begin{figure}[h!]
+	\begin{lstlisting}[language=Smalltalk]
+		"Subtracts b from a only if a is greater then b"
+		a > b ifTrue: [ a - b ].
+		a <= b ifFalse: [ a - b ].
+		"Subtracts the smaller number from the bigger one"
+		a < b
+			ifTrue: [ b - a ]
+			ifFalse: [ a - b ]
+	\end{lstlisting}
+	\caption{Example of messages functioning as \textit{if-}control structures.}
+	\label{lst-if-control}
+\end{figure}
+
+\subsection{For loops}
+The simplest example of a for loop is iterating over a range of integers. There are 2 messages, \texttt{to:do:} and  \texttt{to:by:do:}.
+The receiver of the message is an integer. The receiver of the message is the lower bound of the iteration, the argument for \texttt{to:}
+keyword is the upper bound, \texttt{by:} specifies a step of iteration, \texttt{do:} takes a block that is evaluated (note that the block
+has to have exactly one parameter, so it is possible to capture the value of index in every step).
+
+\begin{figure}[h!]
+	\begin{lstlisting}[language=Smalltalk]
+		"Prints all numbers from 1 to 10"
+		1 to: 10 do: [ :index | index asString printLn ].
+		"Prints all the even numbers between 1 and 100"
+		0 to: 100 by: 2 do: [ :index | index asString printLn ]
+	\end{lstlisting}
+	\caption{Example of simple for loops.}
+	\label{lst-for-index}
+\end{figure}
+
+This way of looping is also usable when iterating over arrays (or any indexable collection). As seen on figure \ref{lst-for-array}, this method is not
+very concise, therefore a message \texttt{do:} is implemented. Array class implements a method corresponding to this message, iterating
+over every element of the array. It takes a block as an argument. The block has to have one parameter -- that is the element of the array
+of the given step of the iteration.
+
+\begin{figure}[h!]
+	\begin{lstlisting}[language=Smalltalk]
+		| array |
+		array := #(1 2 3).
+		"Printing the elements by iterating over index"
+		1 to: array size do: [ :index |
+			(array at: index) asString printLn ].
+		"Printing the elements by iterating over array"
+		array do: [ :element | element asString printLn ]
+	\end{lstlisting}
+	\caption{Comparison of different ways of iterating over an array.}
+	\label{lst-for-array}
+\end{figure}
 
 \subsection{Class hierarchy}
 Protocol of an \texttt{Object} class is (this will probably be used somewhere further on):
