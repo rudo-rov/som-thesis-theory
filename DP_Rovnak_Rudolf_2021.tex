@@ -164,6 +164,36 @@ Declaration of instance side fields follows, denoted by vertical bars. This toke
 are next. Further details on \textit{methods} and \textit{messages} in SOM are discussed in TODO. % TODO: add a link to section on methods
 Same syntax is used for class side fields and methods separated by a special token.
 
+\subsection{Variables}
+In Smalltalk, a variable is defined as \textit{``a dynamically modifiable association (binding) of either a name
+or an index to a value. Each distinct variable has exactly one name (or index)''}\cite{smalltalk-essentials}.
+
+A value of a named variable can be any object. Indexed variables are at the core also just an object. They
+represent an ordered sequence of objects as a single value. Example of those are arrays or Strings. Actual
+indices are always strictly positive (greater than zero), meaning the first element of an array corresponds
+to index of value one. This is standard in Smalltalk dialects, although uncommon in C-like languages. Retrieving
+the values belonging to an index is done via sending a message to the encapsualting object.
+
+When creating a new variable, it is assigned a special value \texttt{nil}, meaning the variable is empty. This
+special value can also be explicitly assigned to a variable at any point.
+
+\subsubsection{Variable name scoping}
+Every variable has its scope, which determines the visibility of the variable. SOM follows the rules of Smalltalk
+when it comes to scoping, as defined in \cite{smalltalk-essentials}:
+
+\begin{itemize}
+	\item \textbf{Local variables} are accessible within the method or code block in which they are defined.
+	\item \textbf{Formal method arguments} are accessible by the method wherein they are defined.
+	\item \textbf{Formal block arguments} are accessible by the block wherein they are defined.
+	\item \textbf{Instance variables} are accessible within all methods of a given object. Each object
+		has its own instances of these variables.
+	\item \textbf{Class variables} are accessible by all objects that are instances of the class or its
+		subclasses. All the objects share the same instance of this variable.
+	\item \textbf{Global variables} are accessible everywhere.
+\end{itemize}
+
+
+
 \section{Primitives}
 Even though SOM is purely object oriented, in order toto get any actual computations done, there is a point where
 some virtual machine primitives must be invoked. Following things are therefore implemented as primitives:
@@ -176,10 +206,10 @@ some virtual machine primitives must be invoked. Following things are therefore 
 
 \section{Methods and messages}
 As the SOM language is based on Smalltalk, the concept of messages (and the link to methods) is crucial to understand.
-\textit{"The only way to invoke a method is to send a message -- which necessarily involves dynamic binding
+\textit{``The only way to invoke a method is to send a message -- which necessarily involves dynamic binding
 (by name) of message to method at runtime (and never at compile time). The internals of an object are not
 externally accessible, ever -- the only way to access or modify an object's internal state is to send it
-a message} \cite{smalltalk-essentials}.
+a message''} \cite{smalltalk-essentials}.
 
 Execution of an invoked method ends with the execution of the last expression in it. Every method implicitly
 returns \texttt{self} (a reference to the object on which the method is invoked). Explicit return of a value
@@ -384,6 +414,26 @@ of the given step of the iteration.
 	\end{lstlisting}
 	\caption{Comparison of different ways of iterating over an array.}
 	\label{lst-for-array}
+\end{figure}
+
+\subsection{While loops}
+While loops are implemented as a unary message sent to a block that returns a boolean value. There are actually
+two messages, \texttt{whileTrue} and \texttt{whileFalse}. The first one repeats the evaluation of a receiver (a block)
+as long as it returns \texttt{true}. The second one, as the name suggests, does the same thing if the block returns
+\texttt{false} value. Example in figure \ref{lst-while} shows printing numbers from 0 to 10 using \texttt{whileTrue}
+message.
+
+\begin{figure}[h!]
+	\begin{lstlisting}[language=Smalltalk]
+		| index |
+		index := 0.
+		[ index asString printLn.
+		index := index + 1.
+		index < 10
+		] whileTrue
+	\end{lstlisting}
+	\caption{Example of while loops.}
+	\label{lst-while}
 \end{figure}
 
 \subsection{Class hierarchy}
