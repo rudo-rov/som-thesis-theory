@@ -177,6 +177,13 @@ the values belonging to an index is done via sending a message to the encapsualt
 When creating a new variable, it is assigned a special value \texttt{nil}, meaning the variable is empty. This
 special value can also be explicitly assigned to a variable at any point.
 
+SOM is a dynamically typed programming language (as is Smalltalk). As a result, there is no syntax to indicate
+a data type of a variable. One thing worth pointing out is that in the context of Smalltalk, a \textit{data type}
+is defined differently than most programming languages. As stated in \cite{smalltalk-essentials}, a class is not
+a type. A Smalltalk type is defined as \textit{``the power set of messages to which an object can meaningfully
+respond''}\cite{smalltalk-essentials}. This is the definition I will be using in the context of SOM. As a result
+of this, any number of SOM classes can implement one data type.
+
 \subsubsection{Variable name scoping}
 Every variable has its scope, which determines the visibility of the variable. SOM follows the rules of Smalltalk
 when it comes to scoping, as defined in \cite{smalltalk-essentials}:
@@ -192,7 +199,31 @@ when it comes to scoping, as defined in \cite{smalltalk-essentials}:
 	\item \textbf{Global variables} are accessible everywhere.
 \end{itemize}
 
+\subsection{Literals}
+As opposed to variables, there is also a need to represent fixed values in a SOM source code. 
 
+\textbf{Integer literal} specifies a value of a decimal whole number, positive or negative.
+In my implementation, every integer literal is a representation of an object of class \texttt{Integer}. 
+For the sake of simplicity, there is no way for a programmer to specify whether the integer literal
+is short, long etc. 
+% TODO: specify the length of an integer and such
+
+\textbf{Floating point literal} approximates a value of a real number. Syntactically, it consists of
+a decimal, possibly negative, integer literal representing the non-fractional part of the number. It is
+followed by a decimal point and another decimal (non-negative) integer representing the fractional part
+of the number. Precision is implicitly given and there is no way to change it. My implementation uses
+double precision.
+
+\textbf{String literal} represents a sequence of characters. String literals are objects of class \texttt{String}.
+Syntactically, they are delimited by single quotes (\texttt{'}). To include a single quote in a string, it needs
+to be escaped by another single quote.
+
+\textbf{Array literals} specify a sequence of values encapsulated by a single object (that is an instance of class
+\texttt{Array}). Syntactically, the values of an array are surrouned by parentheses and preceeded by a hash sign.
+Note that because of the dynamic typing, elements of an array do not have to be instances of the same class.
+% TODO - this should be moved to another chapter on actual array implementation
+% TODO - symbol literals?
+% TODO - block literals
 
 \section{Primitives}
 Even though SOM is purely object oriented, in order toto get any actual computations done, there is a point where
@@ -251,7 +282,7 @@ When composing messages of various types, there are precedence rules (as defined
 \begin{itemize}
 	\item Unary messages are sent first, followed by binary messages. Keyword messages are sent last.
 	\item Messages in parentheses are sent before other messages.
-	\item Messages of the same kind are evaluated from left to right.
+	\item Messages of the same kind are evaluated from left to right. 
 \end{itemize}
 
 These simple rules permit a very natural way of sending messages, as demonstrated on the next example.
@@ -451,6 +482,41 @@ Protocol of an \texttt{Object} class is (this will probably be used somewhere fu
 		implemented in the subclass of a given class,
 	\item \texttt{doesNotUnderstand:arguments:} - can be used for error handling when a method is not implemented.
 \end{itemize}
+
+\section{Abstract syntax tree}
+
+\section{Bytecode}
+The next step after constructing the AST is to compile it into a bytecode. The bytecode is saved in a binary file that can be
+interpreted. The structure of bytecode files and semantics and syntax of operation codes is described in the following sections.
+
+\subsection{Program structure}
+SOM program has a very simple structure consisting of:
+\begin{enumerate}
+	\item \textbf{The constant pool:} This is a list of all the entities of the program. The choice of the word \textit{entity}
+		over \textit{object} is intentional to avoid confusion with what objects are in OOP languages. Each entity can be accessed
+		by its index.
+	\item \textbf{Entry point: } An index to a Method that is executed on program start. There can only be one entry point to a
+		program. It is a unary method with selector \texttt{run}. It can be a member of any class of the program.  
+\end{enumerate}
+
+\subsection{Program entities}
+All entities in the constant pool are one of these types:
+\begin{enumerate}
+	\item \textbf{Nil entity} represents an undefined value.
+	\item \textbf{Int entity} represents a 32 bit signed integer number. It is used for LIT instrucions.
+	\item \textbf{Double entity} represents a double-precision floating point number.
+	\item \textbf{String entity} represents a value of string of characters of arbitrary length. It is used for
+		constants in the program as well as to store all the identifiers to classes, method selectors and variables.
+	\item \textbf{Field entity} represents a variable in an object. It consists of one index to a string value that represents
+		the name of the slot.
+	\item \textbf{Method entity} represents a method of an object. It holds and index to a string representing the selector,
+		number of arguments (arity of the corresponding message), number of local variables and an array of instructions.
+	\item \textbf{Class entity} represents the structure of objects. It consists of an array of indices to all the fields
+		of the object. Each one of these fields point either to a Field entity or a Method entity.
+\end{enumerate}
+
+\subsection{Instructions}
+
 
 \section{Interpretation}
 Once the source code is parsed, the next step is executing it -- this step is called \textit{interpretation}. Interpretation is
