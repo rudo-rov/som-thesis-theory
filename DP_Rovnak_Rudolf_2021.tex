@@ -573,6 +573,61 @@ implement some form of garbage collection.
 
 \chapter{Realisation}
 
+\section{Abstract Syntax Tree}
+After the parsing is complete, Abstract Syntax Tree (AST) is constructed. AST is, by definition, stripped of many syntactic detail.
+It mainly represents the structural and content-related aspects of the code.
+
+The conceptual design of the AST is depicted on figure TODO.
+
+\subsection{AST Nodes}
+\textbf{Class} node represents a class in the program, while the program itself is basically an array of different classes. A class
+holds its name, its member fields (member variables in C++ terminology), instance-side methods (member functions), class-side fields
+(static member variables) and class-side methods (static member functions).
+
+\textbf{Method} node represents a method -- instance or class side. It consists of a pattern, local variable definitions and a block
+to be executed.
+
+\textbf{Pattern} represents a message corresponding to the method. There are 3 types of messages in SOM, therefore there are 3 distinct
+types of patterns. The simplest one is \textbf{unary pattern} -- consisting of only one identifier as there are no arguments. \textbf{Binary pattern}
+is treated as a separate pattern. It consists of identifier and exactly one argument. There are special requirments for binary pattern identifier
+-- there is a special set of characters permitted that can form a binary pattern. \textbf{Keyword pattern} then consists of one or more keywords and
+same number of arguments, each correpsonding to one keyword. Concatenation of keywords form a selector of the method. \textbf{Keywords} holds the string
+value of the keyword, always ending in colon (:).
+
+\textbf{Variable} node represents instance/class side variables, arguments to messages or blocks. It holds the identifier of the variable as a string value.
+
+\textbf{Block} represents a block of executable code with its own scope. The simplest block consists of local variable definitions and an array of
+expressions to be evaluated. While this is enough to represent a method block, other uses may require more information, therefore there is another
+similar node discussed later.
+
+\subsection{Expressions}
+\textbf{Expression} is an abstract term in the context of the AST - there are two types. The common thing is they can be evaluated -- therefore forming
+the actual executable code of the program. 
+
+\textbf{Evaluation} is the first form of expression - it represents a message sends to an object, thus returning a single value when evaluated. This node
+consists of messages (optional) and a \textit{primary}.
+
+\textbf{Primary} is another abstract concept. In its core, a primary represents an object, though there are multiple ways to reference an object in SOM.
+There are four AST nodes that can be classified as a primary:
+\begin{itemize}
+	\item \textbf{Literal} -- a constant basic value (of integer, floating point, string or array type). Each of these have their dedicated literal node
+		holding the value as seen on figure TODO.
+	\item \textbf{Variable} is self explanatory -- a reference to an object accessed via the identifier.
+	\item \textbf{Nested term} is an expression that needs to be evaluated to retrieve the reference to an object. Syntactically, the nested terms
+		are enclosed in parentheses.
+	\item \textbf{Nested block} is a block of expressions returning the reference to an object. It is enclosed in square brackets in the syntax.
+		Nested blocks consist of the same elements as block discussed with methods with addition of a block pattern -- nested block can have their arguments. %TODO: reference the section where blocks are discussed
+\end{itemize}
+
+The second part of the evaluation node is the message sends to the primary. There are three types corresponding to three types of messages in SOM.
+\texttt{UnaryMessage} node is self explanatory -- there are no arguments, only the message selector. \texttt{BinaryMessage} holds its selector too
+with addition of the argument. The argument of the binary message send can be a primary, along with unary message sends (because unary message sends take
+precedence). \texttt{KeywordMessage} is made up of the keywords (forming the selector) and something called \textit{formulas}. Formulas are binary (and also unary) message
+sends, that take precedence over keyword messages.
+
+\textbf{Assignation} is the second form of an expression. The name suggests this node represents assigning a value into a variable. Therefore the node consists
+of the \texttt{Variable} node to assign to and an \texttt{Evaluation} node returning the value to assign.
+
 \setsecnumdepth{part}
 \chapter{Conclusion}
 
