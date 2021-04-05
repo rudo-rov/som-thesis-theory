@@ -16,6 +16,8 @@
 \usepackage{dirtree} %directory tree visualisation
 \usepackage{url}
 % \usepackage{svg}
+\usepackage{lscape}
+\usepackage{rotating}
 \input{smalltalkEnv.tex}
 
 % % list of acronyms
@@ -573,11 +575,41 @@ implement some form of garbage collection.
 
 \chapter{Realisation}
 
+\section{Program overview}
+The program I have implemented provides a way to compile SOM source code and execute it.
+
+\begin{figure}[h!]
+	\centering
+	\begin{verbatim}
+		<som_executable> [OPTION] [SOURCE]
+	\end{verbatim}
+	\caption{Interface of the program.}
+	\label{fig:prog_interface}
+\end{figure}
+
+The interface of the application is simple and consists of two user provided arguments.
+
+The argument \texttt{OPTION} can have two values and alters the mode the app will function in:
+\begin{itemize}
+	\item \texttt{-c} is compile mode. The argument \texttt{SOURCE} is a folder containing the source code of the program.
+		This folder is searched for SOM source files -- those are recognized by their file extension, which should be \texttt{.som}.
+		The folder is searched non recursively. Every SOM source file is compiled and one binary file containing bytecode is created.
+		The name of the file is the same as the provided folder name.
+	\item \texttt{-r} loads and runs a compiled bytecode. The \texttt{SOURCE} argument is a file name of the compiled bytecode.
+\end{itemize}
+
 \section{Abstract Syntax Tree}
 After the parsing is complete, Abstract Syntax Tree (AST) is constructed. AST is, by definition, stripped of many syntactic detail.
 It mainly represents the structural and content-related aspects of the code.
 
-The conceptual design of the AST is depicted on figure TODO.
+The conceptual design of the AST is depicted on figure \ref{fig:ast_class_concept}.
+
+\begin{sidewaysfigure}[h!]
+	\centering
+	\includegraphics[width=\textwidth]{media/ast/ast_concept.png}
+	\caption{Conceptual class diagram for SOM abstract syntax tree.}
+	\label{fig:ast_class_concept}
+\end{sidewaysfigure}
 
 \subsection{AST Nodes}
 \textbf{Class} node represents a class in the program, while the program itself is basically an array of different classes. A class
@@ -600,7 +632,7 @@ value of the keyword, always ending in colon (:).
 expressions to be evaluated. While this is enough to represent a method block, other uses may require more information, therefore there is another
 similar node discussed later.
 
-\subsection{Expressions}
+\subsubsection{Expressions}
 \textbf{Expression} is an abstract term in the context of the AST - there are two types. The common thing is they can be evaluated -- therefore forming
 the actual executable code of the program. 
 
@@ -627,6 +659,11 @@ sends, that take precedence over keyword messages.
 
 \textbf{Assignation} is the second form of an expression. The name suggests this node represents assigning a value into a variable. Therefore the node consists
 of the \texttt{Variable} node to assign to and an \texttt{Evaluation} node returning the value to assign.
+
+\subsection{AST construction}
+The AST is constructed by visiting over the ANTLR--generated parse tree. The visitor is implemented in class \texttt{CParseTreeConverter}. This is a subclass
+of \texttt{SOMParserBaseVisitor}, which is a base visitor implementation provided by ANTLR that perform depth--first traversal over the parse tree. Some member
+functions in \texttt{CParseTreeConverter} are not overriden and make use of this default behaviour (which is just iterating over child nodes and visiting them).
 
 \setsecnumdepth{part}
 \chapter{Conclusion}
