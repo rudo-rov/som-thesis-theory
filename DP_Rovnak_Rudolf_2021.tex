@@ -516,7 +516,23 @@ All entities in the constant pool are one of these types:
 \end{enumerate}
 
 \subsection{Instructions}
-
+\begin{itemize}
+	\item \texttt{LIT i} retrieves a constant value from the constant pool at the index \texttt{i} and pushes it
+		on the stack. The item can be either integer, double or string value.
+	\item \texttt{GET SLOT i} pops a value from the operand stack, assuming it is an object. Then it retrieves a value
+		with index \texttt{i} from the constatns pool, assuming it is a string. It then retrieves the value
+		stored in the slot with the name specified by the string and pushes it onto the stack.
+	\item \texttt{SEND i n} sends a message to an object, which in most cases results in calling a method. A new frame
+		is created on the execution stack, arguments are pushed and the execution jumps to the first instruction of the
+		method.
+	\item \texttt{GET LOCAL i} retrieves a local variable with an index \texttt{i} and pushes it to the top of the stack.
+	\item \texttt{SET LOCAL i} pops a value \texttt{x} from the top of the stack and then assignes the \texttt{x} into
+		a local variable with the index \texttt{i}.
+	\item \texttt{RET} is used to return from a method call. The value from the top of the stack is returned. The address
+		to return to is retrieved from the current frame, then the frame is popped and execution jumps to an instruction
+		after the \texttt{CALL} that invoked the method.
+	\item \texttt{RETNL} - non local return.
+\end{itemize}
 
 \section{Interpretation}
 Once the source code is parsed, the next step is executing it -- this step is called \textit{interpretation}. Interpretation is
@@ -543,15 +559,6 @@ is ommitted. Information that is vital for AST's according to \cite{deepsource-a
 	\item components of operators and their position (for example left and right operands for a binary operator),
 	\item identifiers and corresponding values.
 \end{itemize}
-
-\subsection{Bytecode interpretation}
-Using a form of bytecode. Effective, requires:
-\begin{itemize}
-	\item designing the bytecode (instructions, bytecode file formats),
-	\item AST to bytecode translation (AST -> bytecode instructions),
-	\item actual bytecode interpretation.
-\end{itemize}
-Bytecode interpretation permits easier optimization.
 
 \section{Optimization}
 \begin{itemize}
