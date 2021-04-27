@@ -58,7 +58,9 @@ My goal in this diploma thesis is to implement a process virtual machine for a p
 It is a dynamic, object-oriented programming language based on Smalltalk. It was originally implemented at University of Århus in Denmark to teach
 object oriented VMs \cite{som-github}. There are several implementations in various programming languages, ranging in speed, optimizations etc.
 
-My main focus in my work will be the clarity of implementation over performance. 
+My main focus in my work will be the clarity of implementation over performance. I will try to provide a basic implementation of a traditional runtime
+VM that can be built upon in the future. This will include the process of parsing, compiling the bytecode and then providing a runtime environment,
+along with an implementation for most basic principles (flow control, basic data types, loops).
 
 \chapter{Analysis and design}
 \textit{Simple Object Machine} (SOM) is a minimal Smalltalk dialect used primarily for teaching construction of virtual machines. Key characteristics
@@ -206,26 +208,28 @@ As opposed to variables, there is also a need to represent fixed values in a SOM
 
 \textbf{Integer literal} specifies a value of a decimal whole number, positive or negative.
 In my implementation, every integer literal is a representation of an object of class \texttt{Integer}. 
-For the sake of simplicity, there is no way for a programmer to specify whether the integer literal
-is short, long etc. 
-% TODO: specify the length of an integer and such
+To achieve simple manipulation with integer numbers, all integers are internally represented by a C++
+data type \texttt{int32_t} -- therefore 32 bit signed integer number. Overflow and underflow is not
+addressed in my implementation, therefore the behaviour copies that of the C++ type.
 
 \textbf{Floating point literal} approximates a value of a real number. Syntactically, it consists of
 a decimal, possibly negative, integer literal representing the non-fractional part of the number. It is
 followed by a decimal point and another decimal (non-negative) integer representing the fractional part
 of the number. Precision is implicitly given and there is no way to change it. My implementation uses
-double precision.
+double precision (as defined in C++). Edge cases (such as rounding errors) are not addressed -- the behaviour
+copies that of standard C++ double data type.
 
 \textbf{String literal} represents a sequence of characters. String literals are objects of class \texttt{String}.
 Syntactically, they are delimited by single quotes (\texttt{'}). To include a single quote in a string, it needs
 to be escaped by another single quote.
 
+In the provided implementation of SOM, String objects are not treated as a collection. It is an encapsulated object
+and every String object is unmutable. Every message, that somehow uses and modifies the value of its receiver
+creates a new object. This behaviour corresponds with Smalltalk and other SOM implementations.
+
 \textbf{Array literals} specify a sequence of values encapsulated by a single object (that is an instance of class
 \texttt{Array}). Syntactically, the values of an array are surrouned by parentheses and preceeded by a hash sign.
 Note that because of the dynamic typing, elements of an array do not have to be instances of the same class.
-% TODO - this should be moved to another chapter on actual array implementation
-% TODO - symbol literals?
-% TODO - block literals
 
 \section{Primitives}
 Even though SOM is purely object oriented, in order toto get any actual computations done, there is a point where
@@ -445,7 +449,7 @@ of the given step of the iteration.
 		"Printing the elements by iterating over array"
 		array do: [ :element | element asString printLn ]
 	\end{lstlisting}
-	\caption{Comparison of different ways of iterating over an array.}
+	\caption{Examples of different ways of iterating over an array.}
 	\label{lst-for-array}
 \end{figure}
 
@@ -470,20 +474,15 @@ message.
 \end{figure}
 
 \subsection{Class hierarchy}
-Protocol of an \texttt{Object} class is (this will probably be used somewhere further on):
-\begin{itemize}
-	\item \texttt{class} - returns the class of an object,
-	\item \texttt{=} - value equality comparison,
-	\item \texttt{==} - reference equality comparison,
-	\item \texttt{isNil} - check, if the object is \texttt{nil},
-	\item \texttt{asString} - converts the object into a string,
-	\item \texttt{value} - evaluate (interesting for blocks),
-	\item \texttt{print, println} - prints the object,
-	\item \texttt{error:} - error reporting,
-	\item \texttt{subClassResponsibility} - can be used to indicate the method should be
-		implemented in the subclass of a given class,
-	\item \texttt{doesNotUnderstand:arguments:} - can be used for error handling when a method is not implemented.
-\end{itemize}
+SOM supports single inheritance and it is a vital aspect of the language. As a purely object-oriented programming language,
+it takes full advantage of polymorphism.
+
+Single inheritance permits only one superclass per class. The superclass can be explicitly defined. If it is not defined,
+every class is a subclass of special Object class. This therefore means that every object is an instance of the Object class
+or its subclass.
+
+Tied with inheritance is a principle of late binding. The method to invoke is decided during runtime. The method lookup is simple
+-- it follows the chain of inheritance, from the subclass to superclass (always ending at Object class). 
 
 \section{Abstract syntax tree}
 
@@ -547,48 +546,11 @@ All entities in the constant pool are one of these types:
 		\texttt{i} specifies the number of frames to be popped, then the return value is pushed to the top of the current frame.
 \end{itemize}
 
-\section{Interpretation}
-Once the source code is parsed, the next step is executing it -- this step is called \textit{interpretation}. Interpretation is
-As per \cite{wolczko-02-ast-interpret}, an interpreter for a language L can be defined as a mechanism for the direct execution of all programs
-from L. It executes each element of the program without reference to other elements.
-
-It is however very rare that any language is interpreted directly. In most cases of non-trivial languages, the interpretation process
-is preceeded by parsing or compiling into some form of \textit{intermediate representation}. According to \cite{wolczko-02-ast-interpret},
-this process removes lexical noise (comments, formating), elements can be abstracted/combined (into keywords, operations etc.) and reordered
-into execution order (for example operators in an algebraic expression).
-
-The choice of intermediate representation is therefore vital. It can determine a lot of aspects of interpretation - from the way of distributing
-the interpreted program to time and space complexity of the interpreter.
-
-\subsection{AST interpretation}
-\textit{Abstract syntax tree (AST) is a tree representation of the source code of a computer program that conveys the structure of the source code.
-Each node in the tree represents a construct occuring in the source code }\cite{deepsource-ast}.
-
-As the name suggests, AST represents the source code in the form of a tree. During the transformation from the source code to AST, some information
-is ommitted. Information that is vital for AST's according to \cite{deepsource-ast} is:
-\begin{itemize}
-	\item variables -- their types, location of their definition/declaration,
-	\item order of commands/operations,
-	\item components of operators and their position (for example left and right operands for a binary operator),
-	\item identifiers and corresponding values.
-\end{itemize}
-
-\section{Optimization}
-\begin{itemize}
-	\item dead code elimination,
-	\item constant propagation,
-	\item others\ldots
-\end{itemize}
-
-\section{Virtual Machine}
-Decide on memory hierarchy, garbage collection\ldots
-
 \subsection{Garbage collection}
 The process of \textit{garbage collection} performed by \textit{garbage collector (GC)} is the process of allocating and freeing
 memory during application runtime. The main advantage of this mechanics is to prevent \textit{memory leaks} -- parts of a program
 that allocate memory without freeing it when it is not needed \cite{memleaks-raygun}. Most modern high-level programming languages
 implement some form of garbage collection.
-
 
 
 \chapter{Realisation}
@@ -699,7 +661,16 @@ Similar to values, every instruction is represented by a struct holding the rele
 of printing itself in human readable format and serialize itself to binary format, the same as all the values.
 
 \section{Interpretation}
-The process of interpreting the loaded bytecode is handled by class \texttt{CInterpret}.
+The process of interpreting the loaded bytecode is handled by class \texttt{CInterpret}. The class diagram of the interpretation environment is
+in the figure \ref{fig:interpret_classDiagram}. The diagram serves as a reference point, all the parts are described in further detail in the
+following sections.
+
+\begin{figure}[h!]
+	\centering
+	\includegraphics[width=\textwidth]{media/interpret_class.png}
+	\caption{Conceptual class diagram for interpretation environment.}
+	\label{fig:interpret_classDiagram}
+\end{figure}
 
 \subsection{Program counter}
 The class \texttt{CProgramCounter} is an implementation for a program counter for the VM. During initialization of this object, the entry point of the program is loaded.
@@ -713,6 +684,7 @@ For every method call or block evaluation, a new frame is created and pushed on 
 \begin{itemize}
 	\item Arguments accessible by their index, assigned at compilation. For the sake of stack, the callee is also considered an argument and is always
 		the last element of the arguments array.
+	\item Array of local variables, accessible by their index assigned during compilation.
 	\item Return address. The program counter is set to this address when a \texttt{RET} instruction is executed.
 	\item Local data for the method/block execution. This part is used for all the temporary object creation (e.g. literal values) and argument passing.
 \end{itemize}
@@ -777,6 +749,77 @@ selector (which is a simple string) and the function to invoke is then done via 
 \subsubsection{Strings}
 Every literal string value is represented by an instance of \texttt{String} class during runtime. The corresponding class implementing the primitives is
 \texttt{VMClass}. In SOM, every string object is immutable, therefore every string manipulation results in creating a new string object.
+
+This approach can however lead to inefficiencies when constructing strings. To combat this, a class handling dynamic string creation could
+be implemented, similar to streams.
+
+When looking at String implementation, there is a big difference to how they are implemented in SOM and Smalltalk. When a string object
+is created in Smalltalk, it is handled as an object with indexed fields, each containing a character. My implementaion of SOM does not
+conform to this, as strings are simply handled in the VM runtime. Possible extension of the language could be developed, allowing for
+creation of objects with indexed fields.
+
+This could be the applied to arrays, thus creating a unified ways to handle collections.
+
+\subsection{Messages}
+In SOM, almost everything is handled via message sends. Message sends invoke a method, implemented either directly in SOM, or as a primitive.
+The process of invoking a method on an object depends on what kind of message is sent. Additionally, a small number of special cases needs to
+be handled for code blocks, to allow for iteration.
+
+When a \texttt{SEND} instruction is encountered, the receiver of the message is retrieved from the stack. As the receiver is pushed to the stack
+first, before the argument, it needs to be retrieved using the message arity. To achieve the late binding, the selector (a string value)
+is then retrieved from the constants pool. 
+
+Reference to the class of the object than handles the method dispatch. Slight differences in method dispatch between primitives and native
+methods are discussed in further detail in section TODO.
+
+Every method invokation results in a new frame being created on the execution stack. Because the execution stack is implemented as a
+stack of separate objects representing the frames (and not a continuous array), every new frame needs to be initialized. This handles
+the argument passing, as well as scoping of local variables when sending messages to code blocks.
+
+When the new frame is created, multiple actions take place:
+\begin{itemize}
+	\item Return address on the frame is set to the instruction following the \texttt{SEND} instruction. As every block of code must end
+		with return (simple or non -- local), the existence of the address is guaranteed.
+	\item The array of arguments is initialized. Arguments had been pushed to the stack in the order of corresponding keywords (therefore
+		left to right). As a result, the arguments are reversed in the actual array -- member functions access them from the back. The
+		last argument is set to the reciever -- that is the object accessed by \texttt{self} keyword (comparable to \texttt{this} pointer in
+		C++).
+	\item Array of local variable is initialized. This step is skipped for every object outside of code blocks -- instances of \texttt{Block}
+		class. This is due to the scoping rules -- code blocks can access the local variables of the method, in which they are evaluated.
+\end{itemize}
+
+After the new stack frame is created, the execution of the method can take place. For primitive values, the corresponding member function
+is called directly in the VM. For native methods, program counter is set to the address of the method and interpreting loop continues.
+
+Method execution should always end with the return value at the top of the stack -- for primitives and native methods. Every method
+should also end with the \texttt{RET} instruction. When this instruction is executed, the top value of the current stack is taken.
+The top frame of the stack is removed, program counter is set to its return address and the top value is pushed to the top of the
+underlying frame. Interpreting loop can then continue.
+
+\subsection{Block evaluation}
+From the outside, block evaluation is not very different to method execution. Actual work with blocks is also done entirely through
+standard messaging system. To achieve the functionality in the implementation as -- is, some special cases need to be handled.
+
+The block evaluation is done via \texttt{value} message (or the variants with arguments). The method itself is primitive, as full
+access to interpreting objects is needed. 
+
+As new frame is created on the stack on \texttt{value} send, the actual evaluation is done in that context. This provides one advantage
+in the form of handling arguments -- the arguments provided to the message sends can be directly used by the actual block code, without
+any modification. 
+
+As per scoping rules defined in SOM, code blocks can access local variables of method evaluating them. However, every frame stack holds
+its own local variables. For that, a special case is handled when sending messages to block (\texttt{value messages, \texttt{whileTrue:} etc.).
+The array of locals is first initialized with the values from the underlying stack. Every local variable of the block itself is then placed
+after that. The block object itself (\texttt{self} in this scope) is at the end, as standard.
+
+\subsubsection{Iteration}
+To implement iteration easily and without the need for a lot of recursive calls, method \texttt{restart} is implemented for blocks.
+This message restarts the execution of the block, without the need to call \texttt{self value}, which would result in a new frame
+creation, along with possible arguments and local variables initialization.
+
+In order for this method to work, every frame needs to hold a starting address of the corresponding method. Then the program counter
+can be set to start of the block and executed again.
+%TODO - some example would be nice
 
 \setsecnumdepth{part}
 \chapter{Conclusion}

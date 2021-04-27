@@ -1,0 +1,70 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<diagram program="umlet" version="14.3.0">
+  <zoom_level>10</zoom_level>
+  <element>
+    <id>UMLClass</id>
+    <coordinates>
+      <x>220</x>
+      <y>60</y>
+      <w>530</w>
+      <h>250</h>
+    </coordinates>
+    <panel_attributes>CExecutionStack
+--
+- m_stack : std::stack&lt;Frame&gt;
+--
++ push(obj : VMObject)
++ pop() : VMObject
++ top() : VMObject
++ pushFrame(retAddress : CodeAddress, nargs : int, copyLocalRefs : bool)
++ popFrame() : Frame
++ topFrame() : Frame
++ getArgument(idx : int) : VMObject
++ getSelf() : VMObject
++ fromTop(idx : int) : VMObject
++ getLocal(idx : int) : VMObject
++ setLocal(idx : int, val : VMObject)
++ size() : size_t</panel_attributes>
+    <additional_attributes/>
+  </element>
+  <element>
+    <id>UMLClass</id>
+    <coordinates>
+      <x>300</x>
+      <y>410</y>
+      <w>390</w>
+      <h>260</h>
+    </coordinates>
+    <panel_attributes>Frame
+--
+- m_stack : std::vector&lt;VMObject&gt;
+- m_args : std::vector&lt;VMObject&gt;
+- m_locals : std::vector&lt;VMObject&gt;
+- m_returnAddress : CodeAddress
+- m_initialAddress : CodeAddress
+--
++ push(VMObject)
++ pop() : VMObject
++ top() : VMObject
++ getArgument(idx : int) : VMObject
++ getSelf() : VMObject
++ getLocal(idx : int) : VMObject
++ setLocal(idx : int, val : VMObject)
++ fromTop(idx : int) : VMObject
++ addArgument(arg : VMObject)</panel_attributes>
+    <additional_attributes/>
+  </element>
+  <element>
+    <id>Relation</id>
+    <coordinates>
+      <x>480</x>
+      <y>300</y>
+      <w>50</w>
+      <h>130</h>
+    </coordinates>
+    <panel_attributes>lt=&lt;&lt;&lt;&lt;-
+m1=1
+m2=0..*</panel_attributes>
+    <additional_attributes>10.0;10.0;10.0;110.0</additional_attributes>
+  </element>
+</diagram>
