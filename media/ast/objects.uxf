@@ -1,0 +1,225 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<diagram program="umlet" version="14.3.0">
+  <zoom_level>7</zoom_level>
+  <element>
+    <id>UMLClass</id>
+    <coordinates>
+      <x>518</x>
+      <y>70</y>
+      <w>245</w>
+      <h>147</h>
+    </coordinates>
+    <panel_attributes>VMObject
+--
++ setValue(in VMValue)
++ getClass() : VMClass
++ getValue() : VMValue
++ getField(in identifier : string) : VMObject
++ setField(in identifier : string, in val : VMValue)
+--
+- m_class : VMClass
+- m_value : VMValue
+- m_instanceFields : map
+- initializeInstanceFields(in CGlobalContext)</panel_attributes>
+    <additional_attributes/>
+  </element>
+  <element>
+    <id>UMLClass</id>
+    <coordinates>
+      <x>413</x>
+      <y>259</y>
+      <w>455</w>
+      <h>210</h>
+    </coordinates>
+    <panel_attributes>VMClass
+--
+# addPrimitive(in Program, in identifier : Value)
+# addMethod(in Program, in methodVal : Value)
+# addInstanceField(in identifier : string)
++ dispatchPrimitive(in selector : string, in stack : CExecutionStack, in ret : CodeAddress, in arity : int)
++ getMethodAddr(in selector : string) : CodeAddress
++ addSlot(in prog : Program, in slotIdx : int)
++ className() : string
++ instanceFields : vector
++ hasField(in id : string) : bool
++ isPrimitive(in id : string) : bool
++ newObject(in heap : CHeap, in globalCtx : CGlobalContext) : VMObject
++ newObject(in heap : CHeap, in globalCtx : CGlobalContext, in val : VMValue) : VMObject
+--
+# m_identifier : string
+# m_primitives : vector
+# m_method : map
+# m_instanceFields : vector
+</panel_attributes>
+    <additional_attributes/>
+  </element>
+  <element>
+    <id>Relation</id>
+    <coordinates>
+      <x>623</x>
+      <y>210</y>
+      <w>21</w>
+      <h>63</h>
+    </coordinates>
+    <panel_attributes>lt=&lt;&lt;-</panel_attributes>
+    <additional_attributes>10.0;10.0;10.0;70.0</additional_attributes>
+  </element>
+  <element>
+    <id>UMLClass</id>
+    <coordinates>
+      <x>658</x>
+      <y>546</y>
+      <w>336</w>
+      <h>112</h>
+    </coordinates>
+    <panel_attributes>VMInteger
+--
++ asString(in stack : CExecutionStack, in globalCtx : CGlobalContext)
++ plus(in stack : CExecutionStack, in globalCtx : CGlobalContext)
++ minus(in stack : CExecutionStack, in globalCtx : CGlobalContext)
++ mult(in stack : CExecutionStack, in globalCtx : CGlobalContext)
++ div(in stack : CExecutionStack, in globalCtx : CGlobalContext)
++ floatDiv(in stack : CExecutionStack, in globalCtx : CGlobalContext)
++ mod(in stack : CExecutionStack, in globalCtx : CGlobalContext)</panel_attributes>
+    <additional_attributes/>
+  </element>
+  <element>
+    <id>UMLClass</id>
+    <coordinates>
+      <x>266</x>
+      <y>546</y>
+      <w>336</w>
+      <h>112</h>
+    </coordinates>
+    <panel_attributes>VMString
+--
++ print(in stack : CExecutionStack, in globalCtx : CGlobalContext)
++ printLn(in stack : CExecutionStack, in globalCtx : CGlobalContext)
++ length(in stack : CExecutionStack, in globalCtx : CGlobalContext)
++ concatenate(in stack : CExecutionStack, in globalCtx : CGlobalContext)
++ isWhitespace(in stack : CExecutionStack, in globalCtx : CGlobalContext)
++ isDigits(in stack : CExecutionStack, in globalCtx : CGlobalContext)
++ compare(in stack : CExecutionStack, in globalCtx : CGlobalContext)</panel_attributes>
+    <additional_attributes/>
+  </element>
+  <element>
+    <id>UMLClass</id>
+    <coordinates>
+      <x>658</x>
+      <y>665</y>
+      <w>336</w>
+      <h>112</h>
+    </coordinates>
+    <panel_attributes>VMBlock
+--
++ value(in stack : CExecutionStack, in globalCtx : CGlobalContext)
+</panel_attributes>
+    <additional_attributes/>
+  </element>
+  <element>
+    <id>UMLClass</id>
+    <coordinates>
+      <x>266</x>
+      <y>665</y>
+      <w>336</w>
+      <h>112</h>
+    </coordinates>
+    <panel_attributes>VMDouble
+--
++ asString(in stack : CExecutionStack, in globalCtx : CGlobalContext)
++ plus(in stack : CExecutionStack, in globalCtx : CGlobalContext)
++ minus(in stack : CExecutionStack, in globalCtx : CGlobalContext)
++ mult(in stack : CExecutionStack, in globalCtx : CGlobalContext)
++ div(in stack : CExecutionStack, in globalCtx : CGlobalContext)</panel_attributes>
+    <additional_attributes/>
+  </element>
+  <element>
+    <id>UMLClass</id>
+    <coordinates>
+      <x>840</x>
+      <y>126</y>
+      <w>175</w>
+      <h>91</h>
+    </coordinates>
+    <panel_attributes>VMValue
+--
++ asInt() : int
++ asDouble() : double
++ asString() : string
++ asBlockAddress() : CodeAddress
+--
+- m_value : variant
+</panel_attributes>
+    <additional_attributes/>
+  </element>
+  <element>
+    <id>Relation</id>
+    <coordinates>
+      <x>693</x>
+      <y>210</y>
+      <w>245</w>
+      <h>42</h>
+    </coordinates>
+    <panel_attributes>lt=&lt;&lt;&lt;&lt;&lt;-
+m1=1
+m2=1</panel_attributes>
+    <additional_attributes>10.0;10.0;10.0;40.0;320.0;40.0;320.0;10.0</additional_attributes>
+  </element>
+  <element>
+    <id>Relation</id>
+    <coordinates>
+      <x>595</x>
+      <y>462</y>
+      <w>49</w>
+      <h>161</h>
+    </coordinates>
+    <panel_attributes>lt=&lt;&lt;-</panel_attributes>
+    <additional_attributes>50.0;10.0;50.0;210.0;10.0;210.0</additional_attributes>
+  </element>
+  <element>
+    <id>Relation</id>
+    <coordinates>
+      <x>595</x>
+      <y>462</y>
+      <w>49</w>
+      <h>273</h>
+    </coordinates>
+    <panel_attributes>lt=&lt;&lt;-</panel_attributes>
+    <additional_attributes>50.0;10.0;50.0;370.0;10.0;370.0</additional_attributes>
+  </element>
+  <element>
+    <id>Relation</id>
+    <coordinates>
+      <x>623</x>
+      <y>462</y>
+      <w>49</w>
+      <h>161</h>
+    </coordinates>
+    <panel_attributes>lt=&lt;&lt;-</panel_attributes>
+    <additional_attributes>10.0;10.0;10.0;210.0;50.0;210.0</additional_attributes>
+  </element>
+  <element>
+    <id>Relation</id>
+    <coordinates>
+      <x>623</x>
+      <y>462</y>
+      <w>49</w>
+      <h>273</h>
+    </coordinates>
+    <panel_attributes>lt=&lt;&lt;-</panel_attributes>
+    <additional_attributes>10.0;10.0;10.0;370.0;50.0;370.0</additional_attributes>
+  </element>
+  <element>
+    <id>Relation</id>
+    <coordinates>
+      <x>364</x>
+      <y>210</y>
+      <w>224</w>
+      <h>315</h>
+    </coordinates>
+    <panel_attributes>lt=&lt;&lt;&lt;&lt;-
+m1=0..*
+m2=1</panel_attributes>
+    <additional_attributes>280.0;10.0;280.0;50.0;10.0;50.0;10.0;430.0;220.0;430.0;220.0;370.0</additional_attributes>
+  </element>
+</diagram>

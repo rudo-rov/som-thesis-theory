@@ -513,6 +513,10 @@ All entities in the constant pool are one of these types:
 		the name of the slot.
 	\item \textbf{Method entity} represents a method of an object. It holds and index to a string representing the selector,
 		number of arguments (arity of the corresponding message), number of local variables and an array of instructions.
+	\item \textbf{Primitive entity} is a method that needs an implementation in the VM. These are used to handle constructs that
+		cannot be expressed in the base language. 
+	\item \textbf{Block entity} is a block of code. It holds the number of arguments and an array of instructions (similar
+		to a method).
 	\item \textbf{Class entity} represents the structure of objects. It consists of an array of indices to all the fields
 		of the object. Each one of these fields point either to a Field entity or a Method entity.
 \end{enumerate}
@@ -524,16 +528,23 @@ All entities in the constant pool are one of these types:
 	\item \texttt{GET SLOT i} pops a value from the operand stack, assuming it is an object. Then it retrieves a value
 		with index \texttt{i} from the constatns pool, assuming it is a string. It then retrieves the value
 		stored in the slot with the name specified by the string and pushes it onto the stack.
+	\item \texttt{SET SLOT i} pops a value from the stack. This value is then assigned to an instance variable with identifier
+		at index \texttt{i} in the constants pool.
 	\item \texttt{SEND i n} sends a message to an object, which in most cases results in calling a method. A new frame
 		is created on the execution stack, arguments are pushed and the execution jumps to the first instruction of the
 		method.
 	\item \texttt{GET LOCAL i} retrieves a local variable with an index \texttt{i} and pushes it to the top of the stack.
 	\item \texttt{SET LOCAL i} pops a value \texttt{x} from the top of the stack and then assignes the \texttt{x} into
 		a local variable with the index \texttt{i}.
+	\item \texttt{GET SELF} retrieves the callee of executed method. The object is pushed to the top of the stack.
+	\item \texttt{GET ARG i} retrieves the i--th argument of the current message from the stack and pushes it on top.
+	\item \texttt{BLOCK i} creates a code block object. The argument \texttt{i} points to a block value in the constant pool.
+		The block object is instantiated on the heap and pushed to the top of the stack.
 	\item \texttt{RET} is used to return from a method call. The value from the top of the stack is returned. The address
 		to return to is retrieved from the current frame, then the frame is popped and execution jumps to an instruction
 		after the \texttt{CALL} that invoked the method.
-	\item \texttt{RETNL} - non local return.
+	\item \texttt{RETNL i} - non local return. The value at the top of the current frame is used as the return value. Argument
+		\texttt{i} specifies the number of frames to be popped, then the return value is pushed to the top of the current frame.
 \end{itemize}
 
 \section{Interpretation}
@@ -671,6 +682,101 @@ of the \texttt{Variable} node to assign to and an \texttt{Evaluation} node retur
 The AST is constructed by visiting over the ANTLR--generated parse tree. The visitor is implemented in class \texttt{CParseTreeConverter}. This is a subclass
 of \texttt{SOMParserBaseVisitor}, which is a base visitor implementation provided by ANTLR that perform depth--first traversal over the parse tree. Some member
 functions in \texttt{CParseTreeConverter} are not overriden and make use of this default behaviour (which is just iterating over child nodes and visiting them).
+
+\section{Bytecode}
+After constructing the AST it is turned into a bytecode. The bytecode definitions are located in source files \texttt{Bytecode.h}/\texttt{Bytecode.cpp}. The actual
+compilation is implemented as a depth--first traversal of the AST, therefore a visitor pattern is used. There is an abstract class \texttt{ASTVisitor} that defines
+the interface of any AST visitor. This can be used to further implement visualisations of the AST or to add support for different bytecode instructions sets,
+for example Java bytecode to add support for running inside a Java runtime.
+
+\subsection{Values}
+Every constant value in the code is saved as a \texttt{Value} struct. Each value contains the one byte tag and the actual value to hold. There are method implementations
+to print every value into human readable format for better visualisation of the compiled bytecode. Additionally, every instruction struct is able to serialize itself -- 
+write the data needed in binary format to a file.
+
+\subsection{Instructions}
+Similar to values, every instruction is represented by a struct holding the relevant information (such as operation codes and arguments). Every instruction is capable
+of printing itself in human readable format and serialize itself to binary format, the same as all the values.
+
+\section{Interpretation}
+The process of interpreting the loaded bytecode is handled by class \texttt{CInterpret}.
+
+\subsection{Program counter}
+The class \texttt{CProgramCounter} is an implementation for a program counter for the VM. During initialization of this object, the entry point of the program is loaded.
+The program counter also saves the "end" address. The addresses are implemented as iterators to a vector of instructions -- that is possible simply because all of the
+executable code will be contained within a method, and all the method are loaded into a vector of instructions. The entry point of the program is therefore the first
+instruction of the \texttt{run} method, while "end" address is the end iterator of the same vector. This means that the end address is not an executable instruction.
+
+\subsection{Execution stack}
+The execution stack is responsible for management of method calls (and nested block evaluations). It is implemented as a LIFO (last in, first out) structure.
+For every method call or block evaluation, a new frame is created and pushed on the stack. A frame contains:
+\begin{itemize}
+	\item Arguments accessible by their index, assigned at compilation. For the sake of stack, the callee is also considered an argument and is always
+		the last element of the arguments array.
+	\item Return address. The program counter is set to this address when a \texttt{RET} instruction is executed.
+	\item Local data for the method/block execution. This part is used for all the temporary object creation (e.g. literal values) and argument passing.
+\end{itemize}
+
+Sending a message or evaluating a block therefore can be split into multiple steps:
+\begin{itemize}
+	\item The receiver of the message is pushed to the stack.
+	\item The arguments are then pushed to the stack, in the order from left to right.
+	\item When the \texttt{SEND} instruction is executed, new stack frame is created. The return address is initialized to the address of the instruction
+		following the \texttt{SEND} instruction. Array of arguments is initialized with the values from the top of the stack, number of arguments is provided
+		as an argument of the instruction.
+	\item The new frame is pushed to the stack. The receiver is then accessed, added to the end of the argument array and given the responsibility to invoke
+		the method corresponding to the sent message.
+\end{itemize}
+
+When returning, the top of the stack contains the return value of the method or block. The frame is popped from the stack, program counter is set to the return
+address and the top value is pushed to the new top of the stack.
+
+\subsection{Objects}
+Every object created during runtime (implicitly or explicitely) is represented by the \texttt{VMObject} class. Every value is represented by an instance of this
+class or its subclass. Every object holds a pointer to its class and a map of the instance values -- the identifier as a key, object pointers as a value. Upon creation,
+instance field values are initialize to the \texttt{nil} value.
+
+Every class is represented by a \texttt{VMClass} instance, which is a subclass of \texttt{VMObject}. This allows us to manipulate every class as an object. There
+is only one class instance per class definition during runtime and instantiating new class object is not possible. Before the execution of the code, the bytecode
+is traversed and for every \texttt{CLASS} value, a singleton object is created and initialized. These objects are accessible globally by the identifier -- the class name.
+
+Every class holds all the information needed to create and manipulate its instance. This includes the method dispatch.
+
+\subsubsection{Object creation}
+One of the main responsibilities of the class object is to handle dynamic creation of its instances. This is done via a \texttt{new} message send.
+Upon the \texttt{new} message send:
+\begin{itemize}
+	\item new \texttt{VMObject} is created on the heap and its class is set,
+	\item instance fields of the new object are initialized,
+	\item pointer to the new object is returned.
+\end{itemize}
+
+\subsection{Core library}
+SOM programming language is very light on features. In order for it to be usable, there needs to be an implementation of some fundamental principles provided.
+For example, the language itself does not provide a way to manipulate numbers, character strings, standard input and output or control structures. All of these
+can be implemented in the VM itself while preserving the consistency of rules of the language.
+
+In order to achieve that, a keyword \texttt{primitive} is defined. This keyword is used for methods that require an implementation in the VM runtime. From the outside,
+caling a primitive method is no different than calling a method implemented directly in SOM.
+
+While the user is able to implement their own primitives, a lot of them are already provided in the core library. This library is a set of classes loaded every time
+a SOM code is interpreted. This library provides implementations for:
+\begin{itemize}
+	\item strings,
+	\item numbers -- integers and doubles,
+	\item boolean values with messages that provided control flow features,
+	\item code blocks,
+	\item arrays.
+\end{itemize}
+
+\subsection{Primitives}
+Every class that marks a method primitive has to provide its implementation in the VM. This is done by creating a new subclass of \texttt{VMClass}. This subclass
+then has to implement the primitive methods (in the form of \texttt{void} member functions that take \texttt{CInterpret*} as an argument). Resolving of method
+selector (which is a simple string) and the function to invoke is then done via member function \texttt{dispatchPrimitive}.
+
+\subsubsection{Strings}
+Every literal string value is represented by an instance of \texttt{String} class during runtime. The corresponding class implementing the primitives is
+\texttt{VMClass}. In SOM, every string object is immutable, therefore every string manipulation results in creating a new string object.
 
 \setsecnumdepth{part}
 \chapter{Conclusion}
