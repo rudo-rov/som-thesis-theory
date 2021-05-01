@@ -320,7 +320,8 @@ Blocks can be treated as an object -- they can be assigned to variables and
 passed as arguments. 
 
 Blocks can also accept parameters -- they are denoted with a leading colon. Parameters are separated from the body
-of the block by a vertical bar. Local variables can also be declared inside a block.
+of the block by a vertical bar. Local variables can also be declared inside a block. Those are accessible only inside
+the block and are initialized each time a block is evaluated.
 
 Block is executed by sending it a message \texttt{value}. However, this is a unary message and there is no way
 to pass parameters to a block. To solve this problem, a keyword message \texttt{value:} is implemented. So far, this
@@ -356,6 +357,25 @@ parameters is expected.
 		b3 value: 1 value: 2 value: 3.
 	\end{lstlisting}
 \end{figure}
+
+\subsection{Non--local return and block scoping}
+Block closures are an essential feature to SOM. They allow the implementation of conditionals and loops as messages
+rather then them being baked in the language syntax. Blocks however bring some dynamic runtime semantics that is not
+straightforward. When used to the extreme, blocks can introduce some confusion and generally ugly code. However when
+used correctly, they offer great way to improve readability and reusability of the code.
+
+Every method has its defined context -- a set of variables and objects accessible from the method at given point in an
+execution. Variables accessible by blocks are bound during runtime, in the context of where the block is \textit{defined},
+rather than executed. This is reflected in creation and handling of frames (which can be considered a representation of
+the context of given method). This also ties in to how returns from blocks function.
+
+The context in which the block is created (and evaluated) is commonly called as \textit{home context} of the block.
+The block home context is basically a representation of a particular point in the program execution. When a return
+statement is executed, the execution steps out of the current context and returns to the caller. This can be
+an implicit return (every method or block implicitly returns the receiver of the message). User can decide to
+return a different value, denoted by explicit return statement, (\texttt{^} token).
+
+The behaviour of explicit return in blocks is where the term non--local return comes in. 
 
 \section{Expressions}
 According to \cite{smalltalk-essentials}, \textit{an expression is a segment of code in a body of executable code
