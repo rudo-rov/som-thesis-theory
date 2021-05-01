@@ -209,8 +209,8 @@ As opposed to variables, there is also a need to represent fixed values in a SOM
 \textbf{Integer literal} specifies a value of a decimal whole number, positive or negative.
 In my implementation, every integer literal is a representation of an object of class \texttt{Integer}. 
 To achieve simple manipulation with integer numbers, all integers are internally represented by a C++
-data type \texttt{int32_t} -- therefore 32 bit signed integer number. Overflow and underflow is not
-addressed in my implementation, therefore the behaviour copies that of the C++ type.
+data type \texttt{\detokenize{int32_t}} -- therefore 32 bit signed integer number. Overflow and underflow is not
+addressed in my implementation, therefore the behaviour copies that of the underlying C++ type.
 
 \textbf{Floating point literal} approximates a value of a real number. Syntactically, it consists of
 a decimal, possibly negative, integer literal representing the non-fractional part of the number. It is
@@ -373,14 +373,23 @@ The context in which the block is created (and evaluated) is commonly called as 
 The block home context is basically a representation of a particular point in the program execution. When a return
 statement is executed, the execution steps out of the current context and returns to the caller. This can be
 an implicit return (every method or block implicitly returns the receiver of the message). User can decide to
-return a different value, denoted by explicit return statement, (\texttt{^} token).
+return a different value, denoted by explicit return statement, (\texttt{\^} token).
 
-The behaviour of explicit return in blocks is where the term non--local return comes in. 
+The behaviour of explicit return in blocks is where the term non--local return comes in. \textit{Non local return returns
+to the sender of the block home context, i.e., to the method execution point that called the one that created the block}
+\cite{pharo-blocks}. The important thing is that the home context is tied to the creation of the block, not its
+evaluation. The pitfall here is there can be a situation where home context of a block being evaluated could end before
+the block attempts a return to it. This will result in runtime error.
+
+To ilustrate the non local behaviour better, consider a following example.
+
+\begin{lstlisting}[language=Smalltalk]
+
+\end{lstlisting}
 
 \section{Expressions}
 According to \cite{smalltalk-essentials}, \textit{an expression is a segment of code in a body of executable code
-that can be evaluated to yield a value as a result of its execution.} As seen from the grammar snippet on figure
-TODO, expressions are recursive structures.
+that can be evaluated to yield a value as a result of its execution.} Expressions can contain another expressions.
 
 \begin{figure}
 	\begin{verbatim}
@@ -827,8 +836,8 @@ As new frame is created on the stack on \texttt{value} send, the actual evaluati
 in the form of handling arguments -- the arguments provided to the message sends can be directly used by the actual block code, without
 any modification. 
 
-As per scoping rules defined in SOM, code blocks can access local variables of method evaluating them. However, every frame stack holds
-its own local variables. For that, a special case is handled when sending messages to block (\texttt{value messages, \texttt{whileTrue:} etc.).
+As per scoping rules defined in SOM, code blocks can access local variables of method that created them. However, every frame stack holds
+its own local variables. For that, a special case is handled when sending messages to block (\texttt{value messages}, \texttt{whileTrue:} etc.).
 The array of locals is first initialized with the values from the underlying stack. Every local variable of the block itself is then placed
 after that. The block object itself (\texttt{self} in this scope) is at the end, as standard.
 
