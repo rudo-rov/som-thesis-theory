@@ -535,6 +535,112 @@ The contexts can be represented by stack frames. When performing local return fr
 point that created it -- that means one frame is removed. In non local return, the execution can jump any numbers of contexts -- the
 home context does not even have to exist anymore.
 
+The concept of non local returns can get confusing when dealing with blocks assigned to variable, mainly instance variables.
+The context in which the block is created and evaluated can be far apart. Consider the example at figure \ref{fig:nlreturn_2}, where two blocks are
+assigned as instance variables -- one with a non local return, one without it.
+
+\begin{figure}
+	\centering
+	\begin{lstlisting}[language=Smalltalk]
+		NLReturn2 = (
+			| lBlock nlBlock |
+
+			run = (
+				lBlock := [ 'Local return block' printLn ].
+				nlBlock := [ ^'Non local return block' printLn ].
+				1 to: 10 do: [ :index |
+					index = 3
+						ifTrue: [ nlBlock value ]
+						ifFalse: [ lBlock value ]
+				].
+				'Run method is exiting' printLn
+			)
+		)
+	\end{lstlisting}
+	\caption{Second example code for non local returns.}
+	\label{fig:nlreturn_2}
+\end{figure}
+
+The code assigns the instance variables block objects. Then blocks are evaluated in the loop, depending on the value
+of the index of the iteration. If the index is equal to three, block with non local return is evaluated. Then the program
+prints out exiting message. The output of the program is on figure \ref{fig:nlreturn_2_output}.
+
+\begin{figure}
+	\centering
+	\begin{verbatim}
+		Local return block
+		Local return block
+		Non local return block
+	\end{verbatim}
+	\caption{Output of the example code from figure \ref{fig:nlreturn_2}}
+	\label{fig:nlreturn_2_output}
+\end{figure}
+
+As is evident from the program output, the excution stops after the third step of the iteration. The expression
+following the iteration block is also not executed. When taking a look at the block contexts, it is clear why it is.
+
+\begin{figure}
+	\centering
+	\includegraphics[width=\linewidth]{media/nlreturn_ex2.png}
+	\caption{State of execution before return for example on figure \ref{fig:nlreturn_2}.}
+	\label{fig:nlreturn_2_ctx}
+\end{figure}
+
+There are multiple methods being called before the block is executed. With block in variable \texttt{lBlock}, the
+block's home context plays little role -- after the block is executed, simple return is performed (from the method
+\texttt{value}). With \texttt{nlBlock}, non local return is performed after evaluation -- meaning the execution jumps
+out of the home context of the block -- which means the end execution of the program.
+
+As stated earlier, the non local returns offer a great way to write more compact and readable code. There are some
+pitfalls to be aware of. The nature of the non local returns means that it is not always obvious where the execution
+ends up.
+
+The last example serves to demonstrate how a created block can attempt to exit a context that no longer exists.
+
+\begin{figure}
+	\centering
+	\begin{lstlisting}[language=Smalltalk]
+		NLReturn3 = (
+			| block1 block2 |
+			run = (
+				self createBlocks.
+				block1 value.
+				block2 value
+			)
+
+			createBlocks = (
+				block1 := [ 'Local return' printLn ].
+				block2 := [ ^'Non local return' printLn ]
+			)
+		)
+	\end{lstlisting}
+	\caption{Third example demonstrating non local returns.}
+	\label{fig:nlreturn_3}
+\end{figure}
+
+Execution of this program will result in a runtime error. Both of the blocks are created in the context belonging to the method
+\texttt{createBlocks}. While it may seem, that at least \texttt{block1} could be executed as the evaluation of that block
+returns to the main method. However, none of the blocks can be evaluated in this case and the reason becomes clear with a 
+slight modification to the \texttt{createBlocks} method, as seen on figure \ref{fig:nlreturn_3_2}.
+
+\begin{figure}
+	\centering
+	\begin{lstlisting}[language=Smalltalk]
+		createBlocks = (
+			| mssg |
+			mssg := 'Block evaluation'.
+			block1 := [ mssg printLn ].
+			block2 := [ ^mssg printLn ]
+		)
+	\end{lstlisting}
+	\caption{Modification of the method from example \ref{fig:nlreturn_3}.}
+	\label{fig:nlreturn_3_2}
+\end{figure}
+
+This modification to the method is completely valid -- both block are created within the method's context and thus
+can access its local variables. However, after the return from this method, its context is discarded. By the time
+blocks are evaluated, variable \texttt{mssg} does not exist.
+
 \section{Expressions}
 According to \cite{smalltalk-essentials}, \textit{an expression is a segment of code in a body of executable code
 that can be evaluated to yield a value as a result of its execution.} Expressions can contain another expressions.
