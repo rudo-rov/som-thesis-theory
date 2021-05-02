@@ -626,6 +626,38 @@ On the other hand, the simplicity of the algorithm means there are some disadvan
 The problem of memory fragmentation means that after several runs of the algorithm, the reachable objects will be separated
 by chunks of free memory. This can be solved by shuffling the objects, though at a cost of further performance degradation.
 
+To demonstrate the execution of the algorithm, consider the following object hierarchy allocated during a program execution.
+Each node represents an object allocated on the heap, with marked bit set to false. Arrows represent variable references
+from on object to another. In reality, there will be multiple root objects -- therefore the algorithm can run for every
+root object.
+
+\begin{figure}[h!]
+	\centering
+	\includegraphics[width=\textwidth]{media/gc_ms_step1.png}
+	\caption{Illustration of the object hierarchy before GC algorithm run.}
+	\label{fig:gc_step1}
+\end{figure}
+
+The heap is then traversed from the root object (figure \ref{fig:gc_step2}). Each colour represents one step of the traversal. This example represents
+breadth first search.
+
+\begin{figure}[h!]
+	\centering
+	\includegraphics[width=\textwidth]{media/gc_ms_step2color.png}
+	\caption{Traversal of the heap objects.}
+	\label{fig:gc_step2}
+\end{figure}
+
+After the run of the mark phase, all the objects reachable from the root objects (or multiple root objects after a run for each one) are marked.
+One linear traversal over objects can then remove all of the unmarked ones (figure \ref{fig:gc_step3}).
+
+\begin{figure}[h!]
+	\centering
+	\includegraphics[width=\linewidth]{media/gc_ms_step3.png}
+	\caption{State of the heap after the GC run.}
+	\label{fig:gc_step3}
+\end{figure}
+
 \chapter{Realisation}
 
 \section{Program overview}
