@@ -14,6 +14,7 @@
 % \usepackage{amssymb} %additional math symbols
 
 \usepackage{dirtree} %directory tree visualisation
+\usepackage{hyperref}
 \usepackage{url}
 % \usepackage{svg}
 \usepackage{lscape}
@@ -178,6 +179,8 @@ indices are always strictly positive (greater than zero), meaning the first elem
 to index of value one. This is standard in Smalltalk dialects, although uncommon in C-like languages. Retrieving
 the values belonging to an index is done via sending a message to the encapsualting object.
 
+
+
 When creating a new variable, it is assigned a special value \texttt{nil}, meaning the variable is empty. This
 special value can also be explicitly assigned to a variable at any point.
 
@@ -203,8 +206,11 @@ when it comes to scoping, as defined in \cite{smalltalk-essentials}:
 	\item \textbf{Global variables} are accessible everywhere.
 \end{itemize}
 
+There is some more details on variable scoping, especially when talking about block closures. Further detail
+is discussed in \ref{subsection:nlret}.
+
 \subsection{Literals}
-As opposed to variables, there is also a need to represent fixed values in a SOM source code. 
+Outside of variables, there is also a need to represent fixed values in a SOM source code. 
 
 \textbf{Integer literal} specifies a value of a decimal whole number, positive or negative.
 In my implementation, every integer literal is a representation of an object of class \texttt{Integer}. 
@@ -231,6 +237,8 @@ creates a new object. This behaviour corresponds with Smalltalk and other SOM im
 \texttt{Array}). Syntactically, the values of an array are surrouned by parentheses and preceeded by a hash sign.
 Note that because of the dynamic typing, elements of an array do not have to be instances of the same class.
 
+Every Array literal results in an Array object instantiation. Arrays are mutable, unlike Strings.
+
 \section{Primitives}
 Even though SOM is purely object oriented, in order toto get any actual computations done, there is a point where
 some virtual machine primitives must be invoked. Following things are therefore implemented as primitives:
@@ -240,6 +248,9 @@ some virtual machine primitives must be invoked. Following things are therefore 
 	\item integer arithmethics (\texttt{+}, \texttt{-}, \texttt{=} etc.),
 	\item array accessing (\texttt{at:}, \texttt{at:put:})
 \end{itemize}
+
+Primitives are implemented directly in the VM runtime, though not breaking the syntax or core principles of the
+language. Details on implementation are in section \nameref{subsection:primitives}.
 
 \section{Methods and messages}
 As the SOM language is based on Smalltalk, the concept of messages (and the link to methods) is crucial to understand.
@@ -359,6 +370,7 @@ parameters is expected.
 \end{figure}
 
 \subsection{Non--local return and block scoping}
+\label{subsection:nlret}
 Block closures are an essential feature to SOM. They allow the implementation of conditionals and loops as messages
 rather then them being baked in the language syntax. Blocks however bring some dynamic runtime semantics that is not
 straightforward. When used to the extreme, blocks can introduce some confusion and generally ugly code. However when
@@ -581,6 +593,38 @@ memory during application runtime. The main advantage of this mechanics is to pr
 that allocate memory without freeing it when it is not needed \cite{memleaks-raygun}. Most modern high-level programming languages
 implement some form of garbage collection.
 
+There are multiple possible algorithms that solve this problem. I have decided to implement a mark and sweep algorithm, due to
+its simplicity. The expectation is that this algorithm will not be particularly fast, though it leaves a lot of room for possible
+improvements and it can be used as a demonstration of performance effects of a garbage collector.
+
+\subsubsection{Mark and sweep}
+According to \cite{gc-ms}, the algorithm consists of two main phases:
+\begin{itemize}
+	\item Mark phase -- discovery of all the reachable objects.
+	\item Sweep phase -- clearing the heap of all unreachable objects.
+\end{itemize}
+
+Every object allocated on the heap holds a mark bit. This represents the reachability of the object -- 0 (false) for
+unreachable, 1 (true) for reachable. Upon object creation, the mark bit is set to zero. In the sweep phase a simple
+graph traversal algorithm can be used (such as DFS -- Depth First Search) to mark all the reachable objects. Every
+objects can be considered a node and variables serve as neighbour lists. Root nodes would be local variable and fields
+that are directly accessible.
+
+In the sweep phase, the whole heap can be traversed linearly and objects with mark bit set to zero are deleted. As the \cite{gc-ms}
+states, main advantages of this algorithm are:
+\begin{itemize}
+	\item algorithm handles cyclic references and therefore cannot end up in an infinite loop,
+	\item no additional overheard during the execution of the algorithm (such as extra data structures etc.).
+\end{itemize}
+
+On the other hand, the simplicity of the algorithm means there are some disadvantages:
+\begin{itemize}
+	\item normal program execution is suspended during the garbage collection process,
+	\item the algorithm does not address memory fragmentation.
+\end{itemize}
+
+The problem of memory fragmentation means that after several runs of the algorithm, the reachable objects will be separated
+by chunks of free memory. This can be solved by shuffling the objects, though at a cost of further performance degradation.
 
 \chapter{Realisation}
 
@@ -771,6 +815,7 @@ a SOM code is interpreted. This library provides implementations for:
 \end{itemize}
 
 \subsection{Primitives}
+\label{subsection:primitives}
 Every class that marks a method primitive has to provide its implementation in the VM. This is done by creating a new subclass of \texttt{VMClass}. This subclass
 then has to implement the primitive methods (in the form of \texttt{void} member functions that take \texttt{CInterpret*} as an argument). Resolving of method
 selector (which is a simple string) and the function to invoke is then done via member function \texttt{dispatchPrimitive}.
