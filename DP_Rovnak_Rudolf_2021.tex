@@ -77,6 +77,14 @@ according to official website (\cite{som-github}) are:
 		across various implementations.
 \end{itemize}
 
+\section{Existing implementations}
+There are multiple existing implementations of SOM written in different programming languages, including: Java (SOM), C (CSOM) C++ (SOM++), Python (PySOM) and
+many others. Some of these are bytecode based, others utilize abstract syntax tree interpretation. They range in implemented optimizations (CSOM offers no 
+optimizations, while TruffleSOM claims to be highly optimised).
+
+Additionally, Read-Eval-Print loop implementation is available on the official site of the project. The REPL accepts only simple expressions and does
+not support class definitions. Standard library is available. \cite{som-github}
+
 \section{Grammar}
 To implement a parser for the language, I decided to use ANTLR. I will demonstrate language features and design on the following ANTLR grammar
 for SOM. For the sake of brevity, I ommited terminal symbols from the complete grammar as they are self-explanatory. All the terminal symbols
@@ -151,6 +159,7 @@ in this grammar are named in uppercase letters.
 	\label{fig:classDefinition_rrd}
 \end{figure}
 
+\begin{figure}[h!]
 \begin{lstlisting}[language=Smalltalk]
 	SimpleHello = (
 		| name |
@@ -164,6 +173,9 @@ in this grammar are named in uppercase letters.
 		)
 	)
 \end{lstlisting}
+\caption{Example of a simple class defined in SOM.}
+\label{fig:hello_example}
+\end{figure}
 
 Syntax for class definition follows the official SOM grammar. The language supports single inheritance as apparent from the use
 of \texttt{subclass} token in the grammar. Not every class has explicitly specified superclass, therefore the actual identifier in
@@ -182,8 +194,6 @@ represent an ordered sequence of objects as a single value. Example of those are
 indices are always strictly positive (greater than zero), meaning the first element of an array corresponds
 to index of value one. This is standard in Smalltalk dialects, although uncommon in C-like languages. Retrieving
 the values belonging to an index is done via sending a message to the encapsualting object.
-
-
 
 When creating a new variable, it is assigned a special value \texttt{nil}, meaning the variable is empty. This
 special value can also be explicitly assigned to a variable at any point.
@@ -207,7 +217,9 @@ when it comes to scoping, as defined in \cite{smalltalk-essentials}:
 		has its own instances of these variables.
 	\item \textbf{Class variables} are accessible by all objects that are instances of the class or its
 		subclasses. All the objects share the same instance of this variable.
-	\item \textbf{Global variables} are accessible everywhere.
+	\item \textbf{Global variables} are accessible everywhere. These are primarily special variables
+		(such as \texttt{nil}). Users cannot define their own global variables. This functionality can be
+		achieved using class variables.
 \end{itemize}
 
 There is some more details on variable scoping, especially when talking about block closures. Further detail
@@ -244,7 +256,7 @@ Note that because of the dynamic typing, elements of an array do not have to be 
 Every Array literal results in an Array object instantiation. Arrays are mutable, unlike Strings.
 
 \section{Primitives}
-Even though SOM is purely object oriented, in order toto get any actual computations done, there is a point where
+Even though SOM is purely object oriented, in order to get any actual computations done, there is a point where
 some virtual machine primitives must be invoked. Following things are therefore implemented as primitives:
 \begin{itemize}
 	\item memory allocation (\texttt{new} message),
@@ -254,7 +266,7 @@ some virtual machine primitives must be invoked. Following things are therefore 
 \end{itemize}
 
 Primitives are implemented directly in the VM runtime, though not breaking the syntax or core principles of the
-language. Details on implementation are in section \nameref{subsection:primitives}.
+language. Details on implementation are in section \ref{subsection:primitives}.
 
 \section{Methods and messages}
 As the SOM language is based on Smalltalk, the concept of messages (and the link to methods) is crucial to understand.
@@ -278,26 +290,35 @@ There are three types of messages (as defined in other Smalltalk dialects, Pharo
 
 \textbf{Unary messages} are sent to an object without any additional information (argument). In the following
 example, a unary message \texttt{size} is sent to a string object.
+\begin{figure}[h!]
 \begin{lstlisting}[language=Smalltalk]
 	'hello' size "Evaluates to 5"
 \end{lstlisting}
+\caption{Unary message example.}
+\end{figure}
 
 \textbf{Binary messages} are a special type of messages that require exactly one argument. The selector
 of a binary message can only consist of a sequence of one or more characters from the set: +, -, *, /,
 \&, =, \textless, \textgreater, |, ~ and @. A very simple example of usage of binary messsage are arithmetic operations.
+\begin{figure}[h!]
 \begin{lstlisting}[language=Smalltalk]
 	3 + 4 "Evaluates to 7"
 \end{lstlisting}
+\caption{Binary message example.}
+\end{figure}
 
 \textbf{Keyword messages} require one or more arguments. From the syntactic standpoint, they consist of
 multiple keywords, each ending in colon (:). When sending a message, each keyword is followed by an argument.
 Note, that a keyword message taking one argument is different to a binary message.
+\begin{figure}[h!]
 \begin{lstlisting}[language=Smalltalk]
 	| numbers |
 	numbers := #(1 2 3 4 5). "Simple array"
 	"Sending a keyword message at:put: to an object of class Array"
 	numbers at: 1 put: 6 "numbers is now #(6 2 3 4 5)"
 \end{lstlisting}
+\caption{Array example.}
+\end{figure}
 
 When composing messages of various types, there are precedence rules (as defined for Pharo in \cite{pharo-by-example}):
 \begin{itemize}
@@ -310,14 +331,18 @@ These simple rules permit a very natural way of sending messages, as demonstrate
 First, a simple array is created. Then, a unary message \texttt{last} is evaluated, returning the last
 element of the array. After that, binary message \texttt{+} is evaluated (to 2 in this example). Finally,
 keyword message \texttt{at:put:} is sent to an array, putting number 5 on the second position in an array.
+\begin{figure}[h!]
 \begin{lstlisting}[language=Smalltalk]
 	| numbers |
 	numbers := #(1 2 3 4 5).
 	numbers at: 1 + 1 put: numbers last.
 	"numbers at: (1 + 1) put: (numbers last)"
 \end{lstlisting}
+\caption{Demonstration of message precedence.}
+\end{figure}
 
 Next example demonstrates sending messages from left to right when all of them are of the same type.
+\begin{figure}[h!]
 \begin{lstlisting}[language=Smalltalk]
 	| numbers |
 	numbers := #(1 2 3 4 5)
@@ -325,9 +350,21 @@ Next example demonstrates sending messages from left to right when all of them a
 	"This is equivalent to the following message sends"
 	((numbers last) asString) print
 \end{lstlisting}
+\caption{Demonstration of message sends order for one message type.}
+\end{figure}
 
 There is a downfall to the simplicity of these rules. Arithmethic operations are all just a simple binary
 message sends, therefore to ensure proper precedence, it is necessary to use parentheses.
+\begin{figure}[h!]
+\begin{lstlisting}[language=Smalltalk]
+	"Evaluated as (3 + 2) * 5
+	3 + 2 * 5
+	"Parentheses required to achieve mathemathical
+	operators precedence"
+	3 + (2 * 5)
+\end{lstlisting}
+\caption{Demonstration of mathemathical operators precedence rules.}
+\end{figure}
 
 \section{Blocks}
 Blocks provide a mechanism to defer the execution of expressions \cite{pharo-by-example}.
@@ -354,7 +391,7 @@ There are keyword methods implemented for up to four parameters (\texttt{value:}
 than four parameters, a special keyword message \texttt{valueWithArguments:} is implemented, where an array of
 parameters is expected.
 
-\begin{figure}
+\begin{figure}[h!]
 	\caption{Example of blocks usage in SOM.}
 	\begin{lstlisting}[language=Smalltalk]
 		| b0 b1 b2 b3 |
@@ -366,9 +403,11 @@ parameters is expected.
 		b0 value. "Returns 3"
 		b1 value: 3. "Returns 9"
 		b2 value: 2 value: 8. "Returns 16"
-		"Message valueWithArguments: can be used with any number of parameters"
-		b3 valueWithArguments: #(1 2 3). "Returns 6
-		"The next expression is functionally identical to the previous one"
+		"Message valueWithArguments: can be used with 
+		any number of parameters"
+		b3 valueWithArguments: #(1 2 3). "Returns 6"
+		"The next expression is functionally 
+		identical to the previous one"
 		b3 value: 1 value: 2 value: 3.
 	\end{lstlisting}
 \end{figure}
@@ -397,11 +436,104 @@ to the sender of the block home context, i.e., to the method execution point tha
 evaluation. The pitfall here is there can be a situation where home context of a block being evaluated could end before
 the block attempts a return to it. This will result in runtime error.
 
-To ilustrate the non local behaviour better, consider a following example.
+Consider the example on figure \ref{fig:nlreturn_1}.
 
-\begin{lstlisting}[language=Smalltalk]
+\begin{figure}[h!]
+	\centering
+	\begin{lstlisting}[language=Smalltalk]
+		NLReturn = (
+			run = (
+				| x |
+				x := 0.
+				[ x < 5 ] whileTrue: [
+					x printLn.
+					x := x + 1.
+				]
+			)
+		)
+	\end{lstlisting}
+	\caption{Example to demonstrate non local return.}
+	\label{fig:nlreturn_1}
+\end{figure}
 
-\end{lstlisting}
+In the run method, a local variable \texttt{x} is created, than assigned an Integer of value 0. Then a loop is
+executed. To better understand the example, figure \ref{fig:block_whileTrue} shows the implementation of method \texttt{whileTrue:} in a
+\texttt{Block} class.
+
+\begin{figure}[h!]
+	\centering
+	\begin{lstlisting}[language=Smalltalk]
+		Block = (
+			whileTrue: aBlock = (
+				self value ifFalse: [ ^nil ].
+				block value.
+				self restart.
+			)
+		)
+	\end{lstlisting}
+	\caption{Implementation of \texttt{whileTrue:} method in \texttt{Block} class.}
+	\label{fig:block_whileTrue}
+\end{figure}
+
+As apparent from the two examples, there are multiple blocks used and non local returns are crucial to achieve the functionality of the loop
+(as implemented). The method \texttt{restart} is a primitive block method. It could be considered a jump -- it jumps to the begining of the current
+context. The details of this method are not relevant to non local returns, therefore it will be discussed elsewhere.
+
+Taking a look at the example, the loop consists of the following:
+\begin{itemize}
+	\item Local variable \texttt{x} is defined and assigned a value \texttt{0}.
+	\item A block \texttt{[ x < 5 ]]} is created. The home context of this block is the context of \texttt{run} method. The block is therefore
+		able to access the local variable of the method (variable \texttt{x} in this example).
+	\item Before the actual message send, the argument is created. This results in another block being created with the same home context. Again, the block
+		has access to the \texttt{x} variable each time it is evaluated.
+	\item The message \texttt{whileTrue:} is sent to the first block, with the second one as an argument.
+\end{itemize}
+
+For reference, the implementation of relevant boolean methods used in the example are provided on figure \ref{fig:bool_ifFalse}.
+\begin{figure}[h!]
+	\begin{lstlisting}[language=Smalltalk]
+		True = (
+			ifFalse: aBlock = ( ^nil )
+		)
+
+		False = (
+			ifFalse: aBlock = ( ^aBlock value )
+		)
+	\end{lstlisting}
+	\caption{Implementation of relevant boolean methods.}
+	\label{fig:bool_ifFalse}
+\end{figure}
+
+The execution then continues in the corresponding method:
+\begin{itemize}
+	\item A block \texttt{[ x < 5 ]} (\texttt{self}) is evaluated, returning the value \texttt{true}.
+	\item The instance of \texttt{true} is sent a message \texttt{ifFalse:}. This returns the \texttt{nil} value.
+	\item Execution continues by evaluating the argument block. This prints out the current value of \texttt{x} and
+		increments its value by one. Note that even though the block is evaluated from the context of method
+		\texttt{whileTrue:}, it is actually evaluated in its home context and still has access to the locals of 
+		the home context. The closure captures the variable upon creation, not upon evaluation.
+	\item The \texttt{restart} message is then sent to the first block, starting the execution of the method again.
+\end{itemize}
+
+This gets executed until the variable \texttt{x} holds a value 5. By then, the \texttt{self value} expression returns
+\texttt{false}, therefore \texttt{ifFalse:} is sent to a different object. The argument is the block type, its home context
+is the \texttt{whileTrue:} method context.
+
+State of the execution environment upon this \texttt{ifFalse:} message send is depicted on figure .
+\begin{figure}[h!]
+	\centering
+	\includegraphics[width=\linewidth]{media/nlreturn_ex1.png}
+	\caption{Created blocks and their home contexts.}
+	\label{fig:nlreturn_ctx_1}
+\end{figure}
+
+The argument of the method \texttt{ifFalse:} contains a return statement. This is the non local return. When the block is
+evaluated, the execution \textit{jumps out of the block's home context}. This means the execution ends up in the \texttt{run}
+method, returning the value \texttt{nil}.
+
+The contexts can be represented by stack frames. When performing local return from a current context, the execution returns to the
+point that created it -- that means one frame is removed. In non local return, the execution can jump any numbers of contexts -- the
+home context does not even have to exist anymore.
 
 \section{Expressions}
 According to \cite{smalltalk-essentials}, \textit{an expression is a segment of code in a body of executable code
