@@ -47,7 +47,8 @@ bg=blue</panel_attributes>
       <h>50</h>
     </coordinates>
     <panel_attributes>--
-marked = false</panel_attributes>
+marked = true
+bg=green</panel_attributes>
     <additional_attributes/>
   </element>
   <element>
@@ -60,7 +61,7 @@ marked = false</panel_attributes>
     </coordinates>
     <panel_attributes>--
 marked = true
-bg=green</panel_attributes>
+bg=red</panel_attributes>
     <additional_attributes/>
   </element>
   <element>
@@ -263,5 +264,16 @@ bg=green</panel_attributes>
     </coordinates>
     <panel_attributes>lt=.</panel_attributes>
     <additional_attributes>30.0;60.0;10.0;60.0;10.0;10.0</additional_attributes>
+  </element>
+  <element>
+    <id>Relation</id>
+    <coordinates>
+      <x>710</x>
+      <y>290</y>
+      <w>200</w>
+      <h>70</h>
+    </coordinates>
+    <panel_attributes>lt=&lt;-</panel_attributes>
+    <additional_attributes>10.0;50.0;10.0;10.0;180.0;10.0;180.0;50.0</additional_attributes>
   </element>
 </diagram>

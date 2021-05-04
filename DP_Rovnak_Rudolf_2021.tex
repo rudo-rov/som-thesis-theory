@@ -565,7 +565,7 @@ The code assigns the instance variables block objects. Then blocks are evaluated
 of the index of the iteration. If the index is equal to three, block with non local return is evaluated. Then the program
 prints out exiting message. The output of the program is on figure \ref{fig:nlreturn_2_output}.
 
-\begin{figure}
+\begin{figure}[h!]
 	\centering
 	\begin{verbatim}
 		Local return block
@@ -579,7 +579,7 @@ prints out exiting message. The output of the program is on figure \ref{fig:nlre
 As is evident from the program output, the excution stops after the third step of the iteration. The expression
 following the iteration block is also not executed. When taking a look at the block contexts, it is clear why it is.
 
-\begin{figure}
+\begin{figure}[h!]
 	\centering
 	\includegraphics[width=\linewidth]{media/nlreturn_ex2.png}
 	\caption{State of execution before return for example on figure \ref{fig:nlreturn_2}.}
@@ -597,7 +597,7 @@ ends up.
 
 The last example serves to demonstrate how a created block can attempt to exit a context that no longer exists.
 
-\begin{figure}
+\begin{figure}[h!]
 	\centering
 	\begin{lstlisting}[language=Smalltalk]
 		NLReturn3 = (
@@ -623,7 +623,7 @@ Execution of this program will result in a runtime error. Both of the blocks are
 returns to the main method. However, none of the blocks can be evaluated in this case and the reason becomes clear with a 
 slight modification to the \texttt{createBlocks} method, as seen on figure \ref{fig:nlreturn_3_2}.
 
-\begin{figure}
+\begin{figure}[h!]
 	\centering
 	\begin{lstlisting}[language=Smalltalk]
 		createBlocks = (
@@ -645,7 +645,7 @@ blocks are evaluated, variable \texttt{mssg} does not exist.
 According to \cite{smalltalk-essentials}, \textit{an expression is a segment of code in a body of executable code
 that can be evaluated to yield a value as a result of its execution.} Expressions can contain another expressions.
 
-\begin{figure}
+\begin{figure}[h!]
 	\begin{verbatim}
 	expression: assignation | evaluation;
 	assignation: assignments evaluation;
@@ -658,6 +658,8 @@ that can be evaluated to yield a value as a result of its execution.} Expression
 		| binaryMessage+ keywordMessage?
 		| keywordMessage;
 	\end{verbatim}
+	\caption{ANTLR grammar snippet for expressions.}
+	\label{fig:grammar_exp}
 \end{figure}
 
 Syntactically, an expression can consist of \cite{smalltalk-essentials}:
@@ -829,7 +831,7 @@ All entities in the constant pool are one of these types:
 		\texttt{i} specifies the number of frames to be popped, then the return value is pushed to the top of the current frame.
 \end{itemize}
 
-\subsection{Garbage collection}
+\section{Garbage collection}
 The process of \textit{garbage collection} performed by \textit{garbage collector (GC)} is the process of allocating and freeing
 memory during application runtime. The main advantage of this mechanics is to prevent \textit{memory leaks} -- parts of a program
 that allocate memory without freeing it when it is not needed \cite{memleaks-raygun}. Most modern high-level programming languages
@@ -839,7 +841,7 @@ There are multiple possible algorithms that solve this problem. I have decided t
 its simplicity. The expectation is that this algorithm will not be particularly fast, though it leaves a lot of room for possible
 improvements and it can be used as a demonstration of performance effects of a garbage collector.
 
-\subsubsection{Mark and sweep}
+\subsection{Mark and sweep}
 According to \cite{gc-ms}, the algorithm consists of two main phases:
 \begin{itemize}
 	\item Mark phase -- discovery of all the reachable objects.
@@ -931,12 +933,12 @@ It mainly represents the structural and content-related aspects of the code.
 
 The conceptual design of the AST is depicted on figure \ref{fig:ast_class_concept}.
 
-\begin{sidewaysfigure}[h!]
+\begin{figure}[hp!]
 	\centering
-	\includegraphics[width=\textwidth]{media/ast/ast_concept.png}
+	\includegraphics[width=\textwidth, height=\textheight]{media/ast/ast_concept.png}
 	\caption{Conceptual class diagram for SOM abstract syntax tree.}
 	\label{fig:ast_class_concept}
-\end{sidewaysfigure}
+\end{figure}
 
 \subsection{AST Nodes}
 \textbf{Class} node represents a class in the program, while the program itself is basically an array of different classes. A class
@@ -987,6 +989,30 @@ sends, that take precedence over keyword messages.
 \textbf{Assignation} is the second form of an expression. The name suggests this node represents assigning a value into a variable. Therefore the node consists
 of the \texttt{Variable} node to assign to and an \texttt{Evaluation} node returning the value to assign.
 
+Expression with an explicit return statement is encapsulated in an \texttt{Result} node. The information about explicit return being used is needed
+to handle non local returns.
+
+Consider the following expressions:
+\begin{figure}[h!]
+	\centering
+	\begin{lstlisting}[language=Smalltalk]
+		"Expression 1"
+		receiver1 foo: x asString bar: (x + y toInteger) 
+	\end{lstlisting}
+	\caption{Example for AST construction.}
+	\label{fig:ast_constr_ex}
+\end{figure}
+
+Expression 1 is a keyword message send to a variable \texttt{receiver1}, with arguments as sub-expressions. The AST produced for this expression is
+on figure .
+
+\begin{figure}[h!]
+	\centering
+	\includegraphics[width=\textwidth]{media/exp_ast_1.png}
+	\caption{First expression from example \ref{fig:ast_constr_ex} as AST.}
+	\label{fig:ast_const_ex_1}
+\end{figure}
+
 \subsection{AST construction}
 The AST is constructed by visiting over the ANTLR--generated parse tree. The visitor is implemented in class \texttt{CParseTreeConverter}. This is a subclass
 of \texttt{SOMParserBaseVisitor}, which is a base visitor implementation provided by ANTLR that perform depth--first traversal over the parse tree. Some member
@@ -1033,6 +1059,7 @@ For every method call or block evaluation, a new frame is created and pushed on 
 		the last element of the arguments array.
 	\item Array of local variables, accessible by their index assigned during compilation.
 	\item Return address. The program counter is set to this address when a \texttt{RET} instruction is executed.
+	\item The address of the beginning of the current context. This is used only to achieve iteration without the need of recursion.
 	\item Local data for the method/block execution. This part is used for all the temporary object creation (e.g. literal values) and argument passing.
 \end{itemize}
 
@@ -1069,6 +1096,42 @@ Upon the \texttt{new} message send:
 	\item instance fields of the new object are initialized,
 	\item pointer to the new object is returned.
 \end{itemize}
+
+\subsection{Messages}
+In SOM, almost everything is handled via message sends. Message sends invoke a method, implemented either directly in SOM, or as a primitive.
+The process of invoking a method on an object depends on what kind of message is sent. Additionally, a small number of special cases needs to
+be handled for code blocks, to allow for iteration.
+
+When a \texttt{SEND} instruction is encountered, the receiver of the message is retrieved from the stack. As the receiver is pushed to the stack
+first, before the argument, it needs to be retrieved using the message arity. To achieve the late binding, the selector (a string value)
+is then retrieved from the constants pool. 
+
+Reference to the class of the object than handles the method dispatch. Slight differences in method dispatch between primitives and native
+methods are discussed in further detail in section TODO.
+
+Every method invokation results in a new frame being created on the execution stack. Because the execution stack is implemented as a
+stack of separate objects representing the frames (and not a continuous array), every new frame needs to be initialized. This handles
+the argument passing, as well as scoping of local variables when sending messages to code blocks.
+
+When the new frame is created, multiple actions take place:
+\begin{itemize}
+	\item Return address on the frame is set to the instruction following the \texttt{SEND} instruction. As every block of code must end
+		with return (simple or non -- local), the existence of the address is guaranteed.
+	\item The array of arguments is initialized. Arguments had been pushed to the stack in the order of corresponding keywords (therefore
+		left to right). As a result, the arguments are reversed in the actual array -- member functions access them from the back. The
+		last argument is set to the reciever -- that is the object accessed by \texttt{self} keyword (comparable to \texttt{this} pointer in
+		C++).
+	\item Array of local variable is initialized. This step is skipped for every object outside of code blocks -- instances of \texttt{Block}
+		class. This is due to the scoping rules -- code blocks can access the local variables of the method, in which they are evaluated.
+\end{itemize}
+
+After the new stack frame is created, the execution of the method can take place. For primitive values, the corresponding member function
+is called directly in the VM. For native methods, program counter is set to the address of the method and interpreting loop continues.
+
+Method execution should always end with the return value at the top of the stack -- for primitives and native methods. Every method
+should also end with the \texttt{RET} instruction. When this instruction is executed, the top value of the current stack is taken.
+The top frame of the stack is removed, program counter is set to its return address and the top value is pushed to the top of the
+underlying frame. Interpreting loop can then continue.
 
 \subsection{Core library}
 SOM programming language is very light on features. In order for it to be usable, there needs to be an implementation of some fundamental principles provided.
@@ -1108,66 +1171,121 @@ creation of objects with indexed fields.
 
 This could be the applied to arrays, thus creating a unified ways to handle collections.
 
-\subsection{Messages}
-In SOM, almost everything is handled via message sends. Message sends invoke a method, implemented either directly in SOM, or as a primitive.
-The process of invoking a method on an object depends on what kind of message is sent. Additionally, a small number of special cases needs to
-be handled for code blocks, to allow for iteration.
+\subsection{Blocks}
+As blocks are treated as any other objects in SOM, there needs to be a class implemented for them. Every block in the program is 
+an instance of the \texttt{Block} class. Given the special nature of blocks (as discussed in section \ref{subsection:nlret}), they
+require more implementation details compared to other classes.
 
-When a \texttt{SEND} instruction is encountered, the receiver of the message is retrieved from the stack. As the receiver is pushed to the stack
-first, before the argument, it needs to be retrieved using the message arity. To achieve the late binding, the selector (a string value)
-is then retrieved from the constants pool. 
+\begin{figure}[h!]
+	\centering
+	\begin{lstlisting}[language=Smalltalk]
+		Block = (
+			value = primitive
+			value: arg = primitive
+			"More evaluation methods omitted"
+			
+			whileTrue: block = (
+				self value ifFalse: [ ^nil ].
+				block value.
+				self restart
+			)
 
-Reference to the class of the object than handles the method dispatch. Slight differences in method dispatch between primitives and native
-methods are discussed in further detail in section TODO.
+			whileFalse: block = (
+				[ self value not ] whileTrue: block
+			)
+		)
+	\end{lstlisting}
+\end{figure}
 
-Every method invokation results in a new frame being created on the execution stack. Because the execution stack is implemented as a
-stack of separate objects representing the frames (and not a continuous array), every new frame needs to be initialized. This handles
-the argument passing, as well as scoping of local variables when sending messages to code blocks.
+The actual implementation for blocks is pretty simple -- methods for evaluating and methods for iterating (simulating while loops known from
+other programming languages).
 
-When the new frame is created, multiple actions take place:
+Every block created is an object instance -- therefore it is implemented as an instance of \texttt{VMObject} in the VM. Every block object is
+initialized with a special primitive value (struct \texttt{BlockContext}), holding information needed to evaluate the block. That is:
 \begin{itemize}
-	\item Return address on the frame is set to the instruction following the \texttt{SEND} instruction. As every block of code must end
-		with return (simple or non -- local), the existence of the address is guaranteed.
-	\item The array of arguments is initialized. Arguments had been pushed to the stack in the order of corresponding keywords (therefore
-		left to right). As a result, the arguments are reversed in the actual array -- member functions access them from the back. The
-		last argument is set to the reciever -- that is the object accessed by \texttt{self} keyword (comparable to \texttt{this} pointer in
-		C++).
-	\item Array of local variable is initialized. This step is skipped for every object outside of code blocks -- instances of \texttt{Block}
-		class. This is due to the scoping rules -- code blocks can access the local variables of the method, in which they are evaluated.
+	\item address of the first instruction of the block,
+	\item a pointer to the home context of the block (pointer to the stack frame corresponding with the method that created the block).
 \end{itemize}
 
-After the new stack frame is created, the execution of the method can take place. For primitive values, the corresponding member function
-is called directly in the VM. For native methods, program counter is set to the address of the method and interpreting loop continues.
+\subsubsection{Evaluation}
+What happens upon the evaluation of the block is as follows:
+\begin{itemize}
+	\item The message \texttt{value} (or any variant with arguments) is sent to a block object. This is dispatched using standard method
+		dispatch. As a part of standard method dispatch, new stack frame is created and the execution of the primitive method starts.
+	\item Upon the start of the execution of the method, the new stack frame is discarded and replaced by the block's home context. In
+		standard situations, this will result in multiple pointers pointing to a single frame (as execution stack stores pointers to frames).
+		The return address from the discarded frame is saved, as that is the return address in the case of local return.
+	\item Program counter is set to the first instruction of the block.
+	\item The local return address is set in a separate part of the context. It cannot overwrite the return address already in the context,
+		as that is needed in case execution moves to the context of the executed block again.
+	\item The interpret loop is called (creating a nested call inside of the main interpret loop). On one of the return instructions, 
+		interpret jumps out of the nested interpret call. 
+\end{itemize}
 
-Method execution should always end with the return value at the top of the stack -- for primitives and native methods. Every method
-should also end with the \texttt{RET} instruction. When this instruction is executed, the top value of the current stack is taken.
-The top frame of the stack is removed, program counter is set to its return address and the top value is pushed to the top of the
-underlying frame. Interpreting loop can then continue.
+Every block ends with \texttt{RETNL i} instruction. The integer from an argument decides the behaviour of the return.
+\begin{itemize}
+	\item If \texttt{i = 1}, the return behaves as a local return. Interpretation jumps out of the nested interpret loop, than removes
+		the top stack frame (as is standard for every return from a method). As a return address, the special value from the initially
+		discarded stack frame is used.
+	\item If \texttt{i > 1}, the return is a non local return. Stack frames are popped until the block's home context is at the top.
+		The standard return from that context ensures the execution returns from the block's home context. The execution of the program
+		ends if the home context is the bottom--most frame on the stack.
+\end{itemize}
 
-\subsection{Block evaluation}
-From the outside, block evaluation is not very different to method execution. Actual work with blocks is also done entirely through
-standard messaging system. To achieve the functionality in the implementation as -- is, some special cases need to be handled.
+Consider the following example of a simple block evaluation on figure \ref{fig:block_eval_1}:
+\begin{figure}[h!]
+	\centering
+	\begin{lstlisting}[language=Smalltalk]
+		BlockEval = (
+			run = ( [ 'Hello' printLn ] value )
+		)
+	\end{lstlisting}
+	\caption{Example to demonstrate block evaluation process.}
+	\label{fig:block_eval_1}
+\end{figure}
 
-The block evaluation is done via \texttt{value} message (or the variants with arguments). The method itself is primitive, as full
-access to interpreting objects is needed. 
+The state of the interpret environment after the \texttt{value} message send (right before the first block instruction is evaluated) is depicted 
+on figure \ref{fig:block_eval_1_diagram}.
 
-As new frame is created on the stack on \texttt{value} send, the actual evaluation is done in that context. This provides one advantage
-in the form of handling arguments -- the arguments provided to the message sends can be directly used by the actual block code, without
-any modification. 
+\begin{figure}
+	\centering
+	\includegraphics[width=\textwidth]{media/block_exec_1.png}
+	\caption{State of execution environment for execution of example \ref{fig:block_eval_1}.}
+	\label{fig:block_eval_1_diagram}
+\end{figure}
 
-As per scoping rules defined in SOM, code blocks can access local variables of method that created them. However, every frame stack holds
-its own local variables. For that, a special case is handled when sending messages to block (\texttt{value messages}, \texttt{whileTrue:} etc.).
-The array of locals is first initialized with the values from the underlying stack. Every local variable of the block itself is then placed
-after that. The block object itself (\texttt{self} in this scope) is at the end, as standard.
+There are few things to note. First, the execution stack contains one stack frame two times. This is to ensure that:
+\begin{itemize}
+	\item block can be evaluated in its home context without the need to copy values on initialization and again on return,
+	\item standard mechanism for returning from methods can be used when performing local return from the block.
+\end{itemize}
 
-\subsubsection{Iteration}
-To implement iteration easily and without the need for a lot of recursive calls, method \texttt{restart} is implemented for blocks.
-This message restarts the execution of the block, without the need to call \texttt{self value}, which would result in a new frame
-creation, along with possible arguments and local variables initialization.
+In this case, local return address and standard return address are the same, because the block is evaluated in its home context.
+This does not always has to be the case. In the example, the local return address is used as the block does not perform non local
+return.
 
-In order for this method to work, every frame needs to hold a starting address of the corresponding method. Then the program counter
-can be set to start of the block and executed again.
-%TODO - some example would be nice
+\subsubsection{Argument handling}
+Every block can require arbitrary number of arguments in order to be evaluated. Given that blocks are executed inside already existing
+contexts (with possible existing arguments), this needs to be handled on two levels:
+\begin{itemize}
+	\item During compilation. The arguments are not resolved via their identifier, but they are assigned an index in their scope.
+		The indices of the block cannot clash with already existing ones (arguments of the method creating the block).
+	\item During interpretation. At the beginning of block evaluation, the values of arguments have to be initialized inside the home context.
+		They then have to be removed as to not be accessible from the original method.
+\end{itemize}
+
+\subsubsection{Block restart}
+In order to achieve a possibility of iteration without the need of recursive calls, \texttt{Block} class implements a special \texttt{restart} method.
+The method is implemented as primitive and is used in core library. When writing programs in SOM, the programmer should use existing messages aimed at
+providing iteration functionality, thus the use of this message outside of core library is not recommended.
+
+The method simulates a recursive execution of a method, without the need of allocating and initializing new stack frames on each message send.
+Implementation itself is pretty simple:
+\begin{itemize}
+	\item New stack frame is created as a part of standard message send mechanism. This stack frame is discarded.
+	\item The program counter is set to the address of the initial instruction of curent context (stack frame).
+	\item Interpret loop is then called to avoid context exiting mechanisms.
+\end{itemize}
 
 \setsecnumdepth{part}
 \chapter{Conclusion}
