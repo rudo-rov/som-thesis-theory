@@ -927,6 +927,55 @@ The argument \texttt{OPTION} can have two values and alters the mode the app wil
 	\item \texttt{-r} loads and runs a compiled bytecode. The \texttt{SOURCE} argument is a file name of the compiled bytecode.
 \end{itemize}
 
+\section{Source code parsing}
+The first step of executing the source code is lexical and syntactical analysis. There are multiple solutions to streamline the
+implementation of parsers. For this project, I chose ANTLR (ANother Tool for Lnaguage Recognition). It is a tool that is able
+to generate a parser from a formal grammar defined for a language.
+
+Grammar for SOM is defined in two files -- \texttt{SOMLexer.g4} and \texttt{SOMParser.g4}. These contain rules definitions for
+lexer and parser respectively. Every rule in the grammar has its name and definition.
+
+Lexer rule names always start with an uppercase letter. These are the rules that form a foundation for the subsequent parser rules.
+Every lexer rule represents a token of a language, such as keywords, special characters etc. 
+
+\begin{figure}
+	\centering
+	\begin{verbatim}
+		NewTerm: '(';
+		EndTerm: ')';
+		Primitive: 'primitive';
+
+		Comment:   '"' ~["]* '"' -> skip;
+		Identifier: [\p{Alpha}] [\p{Alpha}0-9_]*;
+		STString:
+    		'\''
+    		(   '\\t'
+      		| '\\b'
+      		| '\\n'
+      		| '\\r'
+      		| '\\f'
+      		| '\\0'
+      		| '\\\''
+      		| '\\\\'
+      		|  ~('\''| '\\')
+    		)*
+    		'\'';
+		Integer: [0-9]+;
+		Double: [0-9]+ '.' [0-9]+;	
+	\end{verbatim}
+	\caption{Example of some interesting lexer rules from SOM ANTLR grammar.}
+	\label{fig:antlr_lexer}
+\end{figure}
+
+Figure \ref{fig:antlr_lexer} shows definitions of some of those lexer rules. The simplest rules define one or multiple character
+tokens (rules like \texttt{NewTerm} or \texttt{Primitive}). Comments are also defined here -- the rule tells the lexer not to tokenize
+any characters between quotation marks. Format of identifiers is also defined here (for classes, variables, messages etc.). String
+and numerical values are also defined here.
+
+Parser rules are where the structure of the source code comes in. Parser rules are defined in file \texttt{SOMParser.g4}. They
+help build the abstract syntax tree (or at least reflect the strucutre of the AST to some degree). 
+
+
 \section{Abstract Syntax Tree}
 After the parsing is complete, Abstract Syntax Tree (AST) is constructed. AST is, by definition, stripped of many syntactic detail.
 It mainly represents the structural and content-related aspects of the code.
@@ -939,6 +988,8 @@ The conceptual design of the AST is depicted on figure \ref{fig:ast_class_concep
 	\caption{Conceptual class diagram for SOM abstract syntax tree.}
 	\label{fig:ast_class_concept}
 \end{figure}
+
+
 
 \subsection{AST Nodes}
 \textbf{Class} node represents a class in the program, while the program itself is basically an array of different classes. A class
@@ -1018,8 +1069,12 @@ The AST is constructed by visiting over the ANTLR--generated parse tree. The vis
 of \texttt{SOMParserBaseVisitor}, which is a base visitor implementation provided by ANTLR that perform depth--first traversal over the parse tree. Some member
 functions in \texttt{CParseTreeConverter} are not overriden and make use of this default behaviour (which is just iterating over child nodes and visiting them).
 
+ANTLR also provides an abstract class that defines the interface of a visitor over a parse tree. Every member function of the visitor returns a special value --
+\texttt{antlr::Any}. It is a special class defined to hold any data type. The implementation therefore has to convert these values (to pointers to AST nodes
+in this case). 
+
 \section{Bytecode}
-After constructing the AST it is turned into a bytecode. The bytecode definitions are located in source files \texttt{Bytecode.h}/\texttt{Bytecode.cpp}. The actual
+After constructing the AST it is compield into bytecode. The bytecode definitions are located in source files \texttt{Bytecode.h}/\texttt{Bytecode.cpp}. The actual
 compilation is implemented as a depth--first traversal of the AST, therefore a visitor pattern is used. There is an abstract class \texttt{ASTVisitor} that defines
 the interface of any AST visitor. This can be used to further implement visualisations of the AST or to add support for different bytecode instructions sets,
 for example Java bytecode to add support for running inside a Java runtime.
@@ -1032,6 +1087,55 @@ write the data needed in binary format to a file.
 \subsection{Instructions}
 Similar to values, every instruction is represented by a struct holding the relevant information (such as operation codes and arguments). Every instruction is capable
 of printing itself in human readable format and serialize itself to binary format, the same as all the values.
+
+\subsection{Compilation}
+The process of compilation consists of a walk over the AST and constructing the program represented by the \texttt{Program} class. This is the class that holds
+the constants pool and all of the instructions. It also holds the information on the entry point of the program (address of the first instruction to execute).
+
+The AST visiting and compilation is handled by the class \texttt{CBytecodeCompiler}, a subclass of abstract AST visitor. The process traverses every class definition
+and visits all its children nodes. The compiler keeps track of all the scopes to help resolve every encountered identifier. 
+
+The high level look at a compilation of a class is:
+\begin{itemize}
+	\item The class identifier is registered as a string constant in the constants pool.
+	\item Instance side and class side variable identifiers are registered as string constant in the constants pool.
+	\item Every method defined in the class is visited (and compiled). For every method, method value is registered in the constant pool.
+	\item Class value is then added into the program. All of the previously compiled variables and methods are registered as slots.
+\end{itemize}
+
+\subsubsection{Method compilation}
+When a method node is encountered, a new scope is created on the scope stack. The scope stack contains \texttt{CMethodCompilationCtx} objects. Every such object holds:
+\begin{itemize}
+	\item a vector of local variable identifiers,
+	\item a vector of formal argument identifiers.
+\end{itemize}
+
+\begin{figure}[h!]
+	\centering
+	\includegraphics[width=\textwidth]{media/classDiagram_compilation.png}
+	\caption{Conceptual class diagram for compilation environment.}
+	\label{fig:class_compilation}
+\end{figure}
+
+The position of the identifier in the vector then determines the index that is assigned to said argument / local variable. That index is then used for
+\texttt{GET ARG} / \texttt{GET LOCAL} instructions. When the method compilation finishes, its context is popped from the stack.
+
+After the arguments and locals are registered in the method scope, the method selector is then added to the constants pool as string value. For unary and binary
+methods, the selector is saved as defined. For keyword messages, the selector is defined as a concatenation of all of the keywords (inluding the colons). This means
+that for a method defined as \texttt{foo: fooArg bar: barArg}, the selector in the constants pool ends up being \texttt{foo:bar:}.
+
+After that, the method block is visited. An empty vector of instructions is created, then every expression is compiled and added to the vector. Whenever and identifier
+is encountered during this, it is resolved as:
+\begin{itemize}
+	\item if the identifier is of value \texttt{self}, the result is \texttt{GET SELF} instruction,
+	\item if the identifier is registered as the current method's local variable with index \texttt{i}, the result is \texttt{GET LOCAL i} instruction,
+	\item if the identifier is registered as the current method's argument with index \texttt{i}, the result is \texttt{GET ARG i} instruction,
+	\item otherwise, the identifier's value is either looked up in the constants pool (if the value exists) or registered (if it does not exist);
+		the index \texttt{i} of the value is then used in the resulting \texttt{GET SLOT i} instruction.
+\end{itemize}
+
+Handling of literal values is strightforward -- the value is registered in the constants pool and \texttt{LIT} instruction is returned. String delimiters are stripped
+from the value in this step.
 
 \section{Interpretation}
 The process of interpreting the loaded bytecode is handled by class \texttt{CInterpret}. The class diagram of the interpretation environment is
@@ -1133,7 +1237,7 @@ should also end with the \texttt{RET} instruction. When this instruction is exec
 The top frame of the stack is removed, program counter is set to its return address and the top value is pushed to the top of the
 underlying frame. Interpreting loop can then continue.
 
-\subsection{Core library}
+\section{Core library}
 SOM programming language is very light on features. In order for it to be usable, there needs to be an implementation of some fundamental principles provided.
 For example, the language itself does not provide a way to manipulate numbers, character strings, standard input and output or control structures. All of these
 can be implemented in the VM itself while preserving the consistency of rules of the language.
@@ -1157,7 +1261,7 @@ Every class that marks a method primitive has to provide its implementation in t
 then has to implement the primitive methods (in the form of \texttt{void} member functions that take \texttt{CInterpret*} as an argument). Resolving of method
 selector (which is a simple string) and the function to invoke is then done via member function \texttt{dispatchPrimitive}.
 
-\subsubsection{Strings}
+\subsection{Strings}
 Every literal string value is represented by an instance of \texttt{String} class during runtime. The corresponding class implementing the primitives is
 \texttt{VMClass}. In SOM, every string object is immutable, therefore every string manipulation results in creating a new string object.
 
@@ -1170,6 +1274,11 @@ conform to this, as strings are simply handled in the VM runtime. Possible exten
 creation of objects with indexed fields.
 
 This could be the applied to arrays, thus creating a unified ways to handle collections.
+
+\subsection{Booleans}
+The core library also provides an implementation of boolean values. The two values are implemented as separate classes (\texttt{True} and \texttt{False})
+with a common superclass (\texttt{Boolean}). The runtime then provides a globally accessible instances of these two classes under the identifiers
+\texttt{true} and \texttt{false}.
 
 \subsection{Blocks}
 As blocks are treated as any other objects in SOM, there needs to be a class implemented for them. Every block in the program is 
