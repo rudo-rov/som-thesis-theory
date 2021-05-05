@@ -85,72 +85,6 @@ optimizations, while TruffleSOM claims to be highly optimised).
 Additionally, Read-Eval-Print loop implementation is available on the official site of the project. The REPL accepts only simple expressions and does
 not support class definitions. Standard library is available. \cite{som-github}
 
-\section{Grammar}
-To implement a parser for the language, I decided to use ANTLR. I will demonstrate language features and design on the following ANTLR grammar
-for SOM. For the sake of brevity, I ommited terminal symbols from the complete grammar as they are self-explanatory. All the terminal symbols
-in this grammar are named in uppercase letters.
-
-\begin{verbatim}
-	grammar SOM;
-
-	classDefinition:
-		IDENTIFIER EQUALS superclass
-		instanceFields method*
-		(SEPARATOR classFields method*) ?
-		CLOSE_PAR
-	;
-	superclass: IDENTIFIER? OPEN_PAR;
-	instanceFields: (VBAR variable* VBAR)?;
-	classFields: (VBAR variable* VBAR)?;
-	method: pattern EQUALS methodBlock;
-	methodBlock: OPEN_PAR blockContents? CLOSE_PAR;
-	blockContents:
-		(VBAR localDefinitions VBAR)?
-		blockBody;
-	localDefinitions: variable*;
-	blockBody: 
-		  RETURN result
-		| expression (PERIOD blockBody?)?;
-	result: expression PERIOD?;
-	expression: assignation | evaluation;
-	assignation: assignments evaluation;
-	assignments: assignment+;
-	assignment: variable ASSIGN;
-	evaluation: primary messages?;
-	primary: variable | nestedTerm | nestedBlock | literal;
-	messages:
-		  unaryMessage+ binaryMessage* keywordMessage?
-		| binaryMessage+ keywordMessage?
-		| keywordMessage;
-	unaryMessage: IDENTIFIER;
-	binaryMessage: binarySelector binaryOperand;
-	binaryOperand: primary unaryMessage*;
-	keywordMessage: (KEYWORD formula)+;
-	formula: binaryOperand binaryMessage*;
-	nestedTerm: OPEN_PAR expression CLOSE_PAR;
-	nestedBlock:
-		NEW_BLOCK blockPattern? blockContents? CLOSE_BLOCK;
-	blockPattern: blockArgs VBAR;
-	blockArgs: (COLON argument)+;
-	variable: IDENTIFIER;
-	pattern: unaryPattern | keywordPattern | binaryPattern;
-	unaryPattern: unarySelector;
-	unarySelector: IDENTIFIER;
-	binaryPattern: binarySelector argument;
-	keywordPattern: (KEYWORD argument)+;
-	binarySelector: 
-		VBAR | PLUS | MINUS | EQUALS | MULT | DIV | MOD |
-		GREATER | GREATER_EQ | LESS | LESS_EQ;
-	argument: variable;
-	literal: literalNumber | literalString | literalArray | literalSymbol;
-	literalNumber: MINUS? (INTEGER | DOUBLE);
-	literalString: STRING;
-	literalArray: POUND NEW_BLOCK literal* CLOSE_BLOCK;
-	literalSymbol: POUND (STRING | selector);
-	selector: binarySelector | keywordSelector | unarySelector;
-	keywordSelector: KEYWORD+;
-\end{verbatim}
-
 \section{Class definition}
 \begin{figure}[h!]
 	\centering
@@ -182,7 +116,7 @@ of \texttt{subclass} token in the grammar. Not every class has explicitly specif
 the rule is optional.
 
 Declaration of instance side fields follows, denoted by vertical bars. This token itself can be empty. Instance side methods definitions
-are next. Further details on \textit{methods} and \textit{messages} in SOM are discussed in TODO. % TODO: add a link to section on methods
+are next. Further details on \textit{methods} and \textit{messages} in SOM are discussed in \ref{section:messages}.
 Same syntax is used for class side fields and methods separated by a special token.
 
 \subsection{Variables}
@@ -269,6 +203,7 @@ Primitives are implemented directly in the VM runtime, though not breaking the s
 language. Details on implementation are in section \ref{subsection:primitives}.
 
 \section{Methods and messages}
+\label{section:messages}
 As the SOM language is based on Smalltalk, the concept of messages (and the link to methods) is crucial to understand.
 \textit{``The only way to invoke a method is to send a message -- which necessarily involves dynamic binding
 (by name) of message to method at runtime (and never at compile time). The internals of an object are not
@@ -927,6 +862,18 @@ The argument \texttt{OPTION} can have two values and alters the mode the app wil
 	\item \texttt{-r} loads and runs a compiled bytecode. The \texttt{SOURCE} argument is a file name of the compiled bytecode.
 \end{itemize}
 
+The SOM source files lookup uses standard C++ \texttt{std::filesystem} implementation. This is the reason the compilation requires
+standard C++17 or newer.
+
+\subsection{Build}
+The project uses CMake to automate the building process. ANTLR executable is needed, either available at the system's \texttt{PATH}
+variable or with its path specified in the root \texttt{CMakeLists.txt} file. The build process then handles the following:
+\begin{itemize}
+	\item downloads the ANTLR runtime from GitHub,
+	\item uses the ANTLR executable to generate the parser and visitors from grammar files,
+	\item compiles and links the project into and executable.
+\end{itemize}
+
 \section{Source code parsing}
 The first step of executing the source code is lexical and syntactical analysis. There are multiple solutions to streamline the
 implementation of parsers. For this project, I chose ANTLR (ANother Tool for Lnaguage Recognition). It is a tool that is able
@@ -973,7 +920,36 @@ any characters between quotation marks. Format of identifiers is also defined he
 and numerical values are also defined here.
 
 Parser rules are where the structure of the source code comes in. Parser rules are defined in file \texttt{SOMParser.g4}. They
-help build the abstract syntax tree (or at least reflect the strucutre of the AST to some degree). 
+help build the abstract syntax tree (or at least reflect the strucutre of the AST to some degree). For reference, excerpts of
+parser rules are demonstrated on figures \ref{fig:antlr_classdef} and \ref{fig:antlr_blocks}.
+
+\begin{figure}[h!]
+	\centering
+	\begin{verbatim}
+		classdef:
+		    Identifier Equal superclass
+		    instanceFields method*
+		    ( Separator classFields classMethod* )?
+		    EndTerm;
+		superclass: Identifier? NewTerm;
+		instanceFields: ( Or variable* Or )?;
+		classFields: ( Or variable* Or )?;
+		classMethod: method;
+	\end{verbatim}
+	\caption{The syntax of class definition described by ANTR grammar.}
+	\label{fig:antlr_classdef}
+\end{figure}
+
+\begin{figure}
+	\centering
+	\begin{verbatim}
+		nestedBlock: NewBlock blockPattern? blockContents? EndBlock;
+		blockPattern: blockArguments Or;
+		blockArguments: ( Colon argument )+;
+	\end{verbatim}
+	\caption{The syntax of nested blocks.}
+	\label{fig:antlr_blocks}
+\end{figure}
 
 
 \section{Abstract Syntax Tree}
@@ -990,7 +966,6 @@ The conceptual design of the AST is depicted on figure \ref{fig:ast_class_concep
 \end{figure}
 
 
-
 \subsection{AST Nodes}
 \textbf{Class} node represents a class in the program, while the program itself is basically an array of different classes. A class
 holds its name, its member fields (member variables in C++ terminology), instance-side methods (member functions), class-side fields
@@ -1000,11 +975,19 @@ holds its name, its member fields (member variables in C++ terminology), instanc
 to be executed.
 
 \textbf{Pattern} represents a message corresponding to the method. There are 3 types of messages in SOM, therefore there are 3 distinct
-types of patterns. The simplest one is \textbf{unary pattern} -- consisting of only one identifier as there are no arguments. \textbf{Binary pattern}
-is treated as a separate pattern. It consists of identifier and exactly one argument. There are special requirments for binary pattern identifier
--- there is a special set of characters permitted that can form a binary pattern. \textbf{Keyword pattern} then consists of one or more keywords and
-same number of arguments, each correpsonding to one keyword. Concatenation of keywords form a selector of the method. \textbf{Keywords} holds the string
-value of the keyword, always ending in colon (:).
+types of patterns:
+\begin{itemize}
+	\item The simplest one is \textbf{unary pattern} -- consisting of only one identifier as there are no arguments.
+	\item \textbf{Binary pattern} is treated as a separate pattern. It consists of identifier and exactly one argument. 
+		There are special requirments for binary pattern identifier -- there is a special set of characters permitted 
+		that can form a binary pattern.
+	\item \textbf{Keyword pattern} then consists of one or more keywords and same number of arguments, each correpsonding 
+		to one keyword. Concatenation of keywords form a selector of the method. \textbf{Keywords} holds the string
+		value of the keyword, always ending in colon (:).
+\end{itemize}
+
+
+  
 
 \textbf{Variable} node represents instance/class side variables, arguments to messages or blocks. It holds the identifier of the variable as a string value.
 
@@ -1023,7 +1006,7 @@ consists of messages (optional) and a \textit{primary}.
 There are four AST nodes that can be classified as a primary:
 \begin{itemize}
 	\item \textbf{Literal} -- a constant basic value (of integer, floating point, string or array type). Each of these have their dedicated literal node
-		holding the value as seen on figure TODO.
+		holding the value as seen on figure \ref{fig:ast_class_concept}.
 	\item \textbf{Variable} is self explanatory -- a reference to an object accessed via the identifier.
 	\item \textbf{Nested term} is an expression that needs to be evaluated to retrieve the reference to an object. Syntactically, the nested terms
 		are enclosed in parentheses.
@@ -1060,7 +1043,7 @@ on figure .
 \begin{figure}[h!]
 	\centering
 	\includegraphics[width=\textwidth]{media/exp_ast_1.png}
-	\caption{First expression from example \ref{fig:ast_constr_ex} as AST.}
+	\caption{Expression from example \ref{fig:ast_constr_ex} as AST.}
 	\label{fig:ast_const_ex_1}
 \end{figure}
 
@@ -1210,8 +1193,7 @@ When a \texttt{SEND} instruction is encountered, the receiver of the message is 
 first, before the argument, it needs to be retrieved using the message arity. To achieve the late binding, the selector (a string value)
 is then retrieved from the constants pool. 
 
-Reference to the class of the object than handles the method dispatch. Slight differences in method dispatch between primitives and native
-methods are discussed in further detail in section TODO.
+Reference to the class of the object than handles the method dispatch.
 
 Every method invokation results in a new frame being created on the execution stack. Because the execution stack is implemented as a
 stack of separate objects representing the frames (and not a continuous array), every new frame needs to be initialized. This handles
@@ -1261,6 +1243,30 @@ Every class that marks a method primitive has to provide its implementation in t
 then has to implement the primitive methods (in the form of \texttt{void} member functions that take \texttt{CInterpret*} as an argument). Resolving of method
 selector (which is a simple string) and the function to invoke is then done via member function \texttt{dispatchPrimitive}.
 
+To demonstrate the functioning of the primitive method, consider the following implementation of the \texttt{concatenate:} method in \texttt{String} class.
+\begin{figure}[h!]
+	\centering
+	\begin{verbatim}
+void VMString::concatenate(CInterpret* interpret) {
+  auto argument = 
+    interpret->executionStack().getArgument(0)->getValue().asString();
+  auto receiver = 
+    interpret->executionStack().getSelf()->getValue().asString();
+  interpret->executionStack().push(
+    std::make_shared<VMObject>(
+      interpret->globalContext().getClass("String"), 
+      VMValue(receiver.append(argument)))
+    );
+}
+	\end{verbatim}
+
+\end{figure}
+
+The method takes one string argument and returns the concatenation of \texttt{self} and argument. The member function itself does not return anything,
+it only manipulates the interpret environment. The objects are retrieved from the current frame of the execution stack and the result is returned
+as the top value on the current frame.
+
+
 \subsection{Strings}
 Every literal string value is represented by an instance of \texttt{String} class during runtime. The corresponding class implementing the primitives is
 \texttt{VMClass}. In SOM, every string object is immutable, therefore every string manipulation results in creating a new string object.
@@ -1304,6 +1310,7 @@ require more implementation details compared to other classes.
 			)
 		)
 	\end{lstlisting}
+	\caption{Block implementation in SOM core library.}
 \end{figure}
 
 The actual implementation for blocks is pretty simple -- methods for evaluating and methods for iterating (simulating while loops known from
@@ -1396,9 +1403,223 @@ Implementation itself is pretty simple:
 	\item Interpret loop is then called to avoid context exiting mechanisms.
 \end{itemize}
 
+\section{Performance}
+To see, how a basic SOM runtime implementation compares to other SOM implementations and some fully featured programming languages, I performed
+a small set of benchmarks. With each one, I provide an implementation code snippet.
+
+\subsection{Fibonacci sequence}
+The first test is calculating a specific position in the Fibonacci sequence. Even though linear complexity is easy to achieve, for the purposes
+of the benchmark, I will use the recursive approach. This will result in lot of redundant computations, yielding $\mathcal{O}(2 ^ n)$
+time complexity and resulting in easily measurable execution times.
+
+The conditions of the time measurements are as follows:
+\begin{itemize}
+	\item Times stated are an average of 100 runs.
+	\item The execution time is measured using \texttt{Measure-Command} on Windows Powershell.
+\end{itemize}
+
+The execution time is measured as a time it takes for a command that executes the program to finish. This includes all the potential
+runtime initializations, procedures after the execution is finished etc.  
+
+The tested program in SOM is on figure \ref{fig:fib_som}. It calculates the thirteenth number in the Fibonacci sequence using recursive calls and
+assigns it to a variable.
+\begin{figure}
+	\centering
+	\begin{lstlisting}[language=Smalltalk]
+		Fibonacci = (
+			run = (
+				| result |
+				result := self fibonacci: 13
+			)
+
+			fibonacci: n = (
+				^(n <= 1)
+					ifTrue: 1
+					ifFalse: [ 
+					(self fibonacci: n - 1) + (self fibonacci: n - 2)
+					])
+		)
+	\end{lstlisting}
+	\caption{The program for Fibonacci sequence performance test in SOM.}
+	\label{fig:fib_som}
+\end{figure}
+
+Following are programs in C++ (figure \ref{fig:fib_cpp}) and Python(figure \ref{fig:fib_py}), doing the exact same thing.
+\begin{figure}
+	\centering
+	\begin{verbatim}
+int fibonacci(int n) {
+  if (n <= 1)
+    return 1;
+  return fibonacci(n - 1) + fibonacci(n - 2);
+}
+
+int main() {
+  int res = fibonacci(13);
+}
+	\end{verbatim}
+	\caption{The program for Fibonacci sequence performance test in C++.}
+	\label{fig:fib_cpp}
+\end{figure}
+
+\begin{figure}
+	\centering
+	\begin{verbatim}
+def fibonacci(n):
+    if n <= 1:
+	    return 1
+	else:
+        return (fibonacci(n-1) + fibonacci(n-2))
+
+res = fibonacci(13)
+	\end{verbatim}
+	\caption{The program for Fibonacci sequence performance test in Python.}
+	\label{fig:fib_py}
+\end{figure}
+
+The results are displayed at figure . As expected, my interpreter of SOM is slower than the traditional programming languages by an order of magnitude.
+\begin{figure}
+	\centering
+	\includegraphics[width=\linewidth]{media/fib_chart_1.png}
+	\caption{Execution times of Fibonacci sequence test.}
+	\label{fig:fib_chart}
+\end{figure}
+
+When compared to other SOM implementations, the difference are smaller, though my implementation is still the slowest. I assume this is
+due to the fact that no optimizations (during compilation or during runtime) are implemented. 
+
+Figure \ref{fig:fib_chart_2} shows comparison with the first Java implementation of SOM, along with the Python one (PySOM). The latter has an option of two types
+of interpreters -- bytecode interpreter and AST interpreter. Both options have been tested and the results are shown.
+
+\begin{figure}
+	\centering
+	\includegraphics[width=\textwidth]{media/fib_chart_2.png}
+	\caption{Execution times of Fibonacci sequence test for various SOM implementations.}
+	\label{fig:fib_chart_2}
+\end{figure}
+
+\subsection{While loop}
+It is pretty apparent that further comparisons of SOM performance to traditional, fully featured programming languages has purpose. In the
+next test, I will compare how a very basic language feature performs across the tested SOM implementations.
+
+The program consists of a simple while loop, iterating and incrementing a local variable two million times. The SOM source code (same for all
+implementations) is on figure .
+\begin{figure}[h!]
+	\centering
+	\begin{lstlisting}[language=Smalltalk]
+		WhileLoopBench = (
+			run = (
+				| x |
+				x := 0.
+				(x < 2000000) whileTrue: [
+					x := x + 1.
+				]
+			)
+		)
+	\end{lstlisting}
+	\caption{SOM source code for second performance benchmark -- while loop evaluation.}
+	\label{fig:code_while_bench}
+\end{figure}
+
+The results of the test (figure \ref{fig:while_chart}) are unexpected. The provided C++ implementation of SOM is very close to (highly optimized) PySOM bytecode interpreter
+implementation and consistently faster than Java one. This could be caused by multiple things:
+\begin{itemize}
+	\item The optimizations in PySOM and SOM (Java) did not cover the specific code in the benchmark. This could mean that relative speedup of my implementation is simply
+		due to underlying programming languages used (compiled C++ interpreter against interpreted Java/Python ones).
+	\item The implementation of \texttt{restart} method (used in \texttt{whileTrue:}) in \texttt{Block} class in different virtual machines.
+\end{itemize} 
+
+\begin{figure}[h!]
+	\centering
+	\includegraphics[width=\textwidth]{media/while_chart_1.png}
+	\caption{Execution times for different SOM implementations for code from \ref{fig:code_while_bench}.}
+	\label{fig:while_chart}
+\end{figure}
+
+When examining the Java implementation, I found that the \texttt{restart} primitive method for block is implemented very similarly to mine. From the code snippet () it is
+safe to assume that no extra message sends or any different actions are performed.
+\begin{figure}[h!]
+	\centering
+	\begin{verbatim}
+public void invoke(Frame frame, Interpreter interpreter) {
+  frame.setBytecodeIndex(0);
+  frame.resetStackPointer();
+}
+	\end{verbatim}
+	\caption{Invokation of \texttt{restart} method in Java implementation of SOM (taken from \cite{som-java-github}).}
+\end{figure}
+
+\subsection{Non local returns}
+In the third test, I take a look at performance of non local returns. The code that is run in all implementation is on figure \ref{fig:code_nlret_bench}.
+\begin{figure}[h!]
+	\centering
+	\begin{lstlisting}[language=Smalltalk]
+	NLReturn = (
+
+    	first: a = ( self second: a )
+    	second: a = (self third: a )
+    	third: a = ( a value )
+
+    	nlr = (
+        	self first: [ ^1 ]
+    	)
+
+    	run = (
+        	| x |
+        	x := 0.
+        	[ x < 200 ] whileTrue: [
+            	x := x + self nlr
+        	].
+        	x printLn
+    	)
+	)
+	\end{lstlisting}
+	\caption{SOM source code for third performance benchmark -- non local return evaluation.}
+	\label{fig:code_nlret_bench}
+\end{figure}
+
+The results on figure \ref{fig:nlret_chart} show a trend of PySOM implementation being the fastest one tested.
+The Java implementation is then second, while my provided implementation seems to be on average around two time slower
+than that.
+
+\begin{figure}
+	\centering
+	\includegraphics[width=\textwidth]{media/nlret_chart_1.png}
+	\caption{Execution times for different SOM implementations for code from \ref{fig:code_nlret_bench}.}
+	\label{fig:nlret_chart}
+\end{figure}
+
+\section{Possible improvements}
+The provided solution offers basic functionality to execute SOM programs. It can be further built upon and improved in several ways.
+As demonstrated in the benchmarking section, the performance is lackluster compared to existing solutions. I will propose a few
+solutions, that could be implemented in the future to remedy this.
+
+\subsection{Bytecode}
+Provided solution utilises a custom design bytecode, based on SOM/Smalltalk bytecode. An alternate compiler could be built, utilising
+an existing bytecode with existing VM implementation. 
+
+\subsection{Garbage collection}
+Implemented garbage collection algorithm is a fairly basic one. An interesting addition would be the implementation of more advanced GC
+algorithms (such as reference counting or generational collection). Other possible improvements to GC could be the implementation
+of concurrent mark and sweep to shorten the execution pauses.
+
+
 \setsecnumdepth{part}
 \chapter{Conclusion}
+In my thesis, I provided an overview of the syntax and core principles of the Simple Object Machine programming language. I have put
+the language in the context of Smalltalk, on which SOM is based.
 
+I provided a basic implementation of a virtual machine to execute SOM programs. The solution parses the source files, compiles them into
+bytecode and is then able to load the compiled bytecode and execute it. The thesis provides the description of abstract syntax tree design,
+as well as bytecode design and its implementation. 
+
+The project provides basic functionality, compared to existing SOM implementations. Especially from the performance point of view,
+there is a lot of potential for further work and improvement. Optimizations over AST and bytecode or more advanced garbage collection
+algorithms are the first things that come to mind.
+
+On the other hand, this relatively small implementation offers an advantage of providing an easy to get into playground for people that
+want to experiment with runtime systems. The clear separation of every step of compilation/execution allows faster understanding of the
+functioning, as well as ability to easily modify or completely change the parser, compiler or interpreter.
 
 \bibliographystyle{iso690}
 \bibliography{mybibliographyfile}
