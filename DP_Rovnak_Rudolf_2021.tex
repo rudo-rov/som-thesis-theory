@@ -27,13 +27,13 @@
 % \makeglossaries
 
 \department{Department of Theoretical Computer Science}
-\title{SimpleObjectMachine implementation}
+\title{Simple Object Machine implementation}
 \authorGN{Rudolf} %author's given name/names
 \authorFN{Rovňák} %author's surname
 \author{Rudolf Rovňák} %author's name without academic degrees
 \authorWithDegrees{Bc. Rudolf Rovňák} %author's name with academic degrees
 \supervisor{Ing. Petr Máj}
-\acknowledgements{THANKS (remove entirely in case you do not with to thank anyone)}
+\acknowledgements{I would like to thank my supervisor for helping me patiently with this work.}
 \abstractEN{In this work I provide an implementation of a virtual machine for Simple Object Machine programming language, based on Smalltalk.
 	Additionally, I will provide an analysis of existing implementations, along with an analysis of my own. I will design and implement a parser,
 	bytecode with a compiler and runtime environment with garbage collector to allow executing programs written in SOM.}
@@ -41,8 +41,8 @@
 	Takisto vypracujem anal{\' y}zu existuj{\' u}cich rie{\v s}en{\' i} a anal{\' y}zu vlastn{\' e}ho rie{\v s}enia. Navrhnem a implementujem syntaktick{\' u} anal{\' y}zu,
 	bajtk{\' o}d s procesom kompil{\' a}cie do{\v n} a prostredie pre spustenie programov nap{\' i}san{\' y}ch v programovacom jazyku SOM.}
 \placeForDeclarationOfAuthenticity{Prague}
-\keywordsCS{Replace with comma-separated list of keywords in Czech.}
-\keywordsEN{runtime, virtual machine, }
+\keywordsCS{behov{\' e} prostredie, virtu{\' a}ny stroj, objektovo orientovan{\' e} programovanie}
+\keywordsEN{runtime, virtual machine, object oriented programming}
 \declarationOfAuthenticityOption{1} %select as appropriate, according to the desired license (integer 1-6)
 % \website{http://site.example/thesis} %optional thesis URL
 
@@ -56,14 +56,19 @@
 \setcounter{secnumdepth}{3}
 \chapter{Introduction}
 In the last decades, a trend of dynamic programming languages \footnote{Not to be confused with \textit{dynamically typed programming languages.}} has been on the rise.
-As opposed to static programming languages (usually compiled) dynamic ones offer a higher level of abstraction and allow faster and less error-prone development.
+As opposed to static programming languages (usually compiled) dynamic ones offer a higher level of abstraction and claim to allow faster and less error-prone development,
+though validity of such claims is a subject to many discussions.
 Dynamic languages move a lot of actions traditionally done during compile-time to run-time. This creates the need for another layer, \textit{a runtime environment}.
 
-My goal in this diploma thesis is to implement a process virtual machine for a programming language called SOM, or Simple Object Machine. 
+Dynamic languages are often, but not always, dynamically typed. This is just one aspect -- this can be considered just an example of a process done
+either before program execution (static type checking) or during runtime (dynamic type checking). Other principles that are genrally utilised heavily in
+dynamic languages are late binding, reflection and more.
+
+The goal of this diploma thesis is to implement a process virtual machine for a programming language called SOM, or Simple Object Machine. 
 It is a dynamic, object-oriented programming language based on Smalltalk. It was originally implemented at University of Århus in Denmark to teach
 object oriented VMs \cite{som-github}. There are several implementations in various programming languages, ranging in speed, optimizations etc.
 
-My main focus in my work will be the clarity of implementation over performance. I will try to provide a basic implementation of a traditional runtime
+The main focus of this work will be the clarity of implementation over performance. The solution will provide a basic implementation of a traditional runtime
 VM that can be built upon in the future. This will include the process of parsing, compiling the bytecode and then providing a runtime environment,
 along with an implementation for most basic principles (flow control, basic data types, loops).
 
@@ -72,7 +77,7 @@ along with an implementation for most basic principles (flow control, basic data
 according to official website (\cite{som-github}) are:
 \begin{itemize}
 	\item clarity of implementation over performance,
-	\item common language features such as: objects, classes, closures, non-local returns
+	\item common language features such as: objects, classes, closures, non-local returns,
 	\item interpreter optimizations, threading, garbage collectors are different
 		across various implementations.
 \end{itemize}
@@ -80,7 +85,7 @@ according to official website (\cite{som-github}) are:
 \section{Existing implementations}
 There are multiple existing implementations of SOM written in different programming languages, including: Java (SOM), C (CSOM) C++ (SOM++), Python (PySOM) and
 many others. Some of these are bytecode based, others utilize abstract syntax tree interpretation. They range in implemented optimizations (CSOM offers no 
-optimizations, while TruffleSOM claims to be highly optimised).
+optimizations, while TruffleSOM claims to be highly optimised) \cite{som-github}.
 
 Additionally, Read-Eval-Print loop implementation is available on the official site of the project. The REPL accepts only simple expressions and does
 not support class definitions. Standard library is available. \cite{som-github}
@@ -118,6 +123,10 @@ the rule is optional.
 Declaration of instance side fields follows, denoted by vertical bars. This token itself can be empty. Instance side methods definitions
 are next. Further details on \textit{methods} and \textit{messages} in SOM are discussed in \ref{section:messages}.
 Same syntax is used for class side fields and methods separated by a special token.
+
+There are no access modifiers for class variables and methods. By default, all the instance and class variables are accessible only
+from the given class (or its instances) or its subclass. This corresponds to the behaviour of \texttt{protected} access modifier in
+C++. Every method is invokable by a corresponding message send to an object -- this corresponds to \texttt{public} access modifier.
 
 \subsection{Variables}
 In Smalltalk, a variable is defined as \textit{``a dynamically modifiable association (binding) of either a name
@@ -163,10 +172,10 @@ is discussed in \ref{subsection:nlret}.
 Outside of variables, there is also a need to represent fixed values in a SOM source code. 
 
 \textbf{Integer literal} specifies a value of a decimal whole number, positive or negative.
-In my implementation, every integer literal is a representation of an object of class \texttt{Integer}. 
+In provided implementation, every integer literal is a representation of an object of class \texttt{Integer}. 
 To achieve simple manipulation with integer numbers, all integers are internally represented by a C++
 data type \texttt{\detokenize{int32_t}} -- therefore 32 bit signed integer number. Overflow and underflow is not
-addressed in my implementation, therefore the behaviour copies that of the underlying C++ type.
+addressed in the implementation, therefore the behaviour copies that of the underlying C++ type.
 
 \textbf{Floating point literal} approximates a value of a real number. Syntactically, it consists of
 a decimal, possibly negative, integer literal representing the non-fractional part of the number. It is
@@ -191,7 +200,7 @@ Every Array literal results in an Array object instantiation. Arrays are mutable
 
 \section{Primitives}
 Even though SOM is purely object oriented, in order to get any actual computations done, there is a point where
-some virtual machine primitives must be invoked. Following things are therefore implemented as primitives:
+some virtual machine primitives must be invoked. Following things are therefore implemented as primitives (among others):
 \begin{itemize}
 	\item memory allocation (\texttt{new} message),
 	\item bitwise operations,
@@ -234,7 +243,7 @@ example, a unary message \texttt{size} is sent to a string object.
 
 \textbf{Binary messages} are a special type of messages that require exactly one argument. The selector
 of a binary message can only consist of a sequence of one or more characters from the set: +, -, *, /,
-\&, =, \textless, \textgreater, |, ~ and @. A very simple example of usage of binary messsage are arithmetic operations.
+\&, =, \textless, \textgreater, |, ~ and @. A simple example of usage of binary messsage are arithmetic operations.
 \begin{figure}[h!]
 \begin{lstlisting}[language=Smalltalk]
 	3 + 4 "Evaluates to 7"
@@ -312,7 +321,7 @@ the block and are initialized each time a block is evaluated.
 
 Block is executed by sending it a message \texttt{value}. However, this is a unary message and there is no way
 to pass parameters to a block. To solve this problem, a keyword message \texttt{value:} is implemented. So far, this
-gives a user to pass only one parameter to a block. To mitigate this issue, there are two posibilities. The first one
+gives a user ability to pass only one parameter to a block. To mitigate this issue, there are two posibilities. The first one
 is to implement a keyword message for every number of parameters (for example \texttt{value:value:}, 
 \texttt{value:value:value:}). While this approach is simple, readable and relatively easy to implement for low
 numbers of parameters, it is impossible for this solution to be exhaustive and the code using very long keyword
@@ -320,9 +329,9 @@ messages would be bloated.
 
 Another approach would be to implement a keyword message \texttt{value:} with an argument of array type. This would
 permit to use arbitrary number of arguments, though it would require to create arrays of objects before passing them
-to a block, which could impact readability and clarity of the code. In order to combine pros and cons of these 2
-approaches, I have decided to follow the implementation in Pharo according to \cite[p.~65]{pharo-by-example}. 
-There are keyword methods implemented for up to four parameters (\texttt{value:}, \texttt{value:value:}). For more
+to a block, which could impact readability and clarity of the code. In order to combine pros and cons of these two
+approaches, th solution follows the implementation in Pharo according to \cite[p.~65]{pharo-by-example}. 
+There are keyword methods implemented for up to three parameters (\texttt{value:}, \texttt{value:value:}). For more
 than four parameters, a special keyword message \texttt{valueWithArguments:} is implemented, where an array of
 parameters is expected.
 
@@ -392,7 +401,7 @@ Consider the example on figure \ref{fig:nlreturn_1}.
 \end{figure}
 
 In the run method, a local variable \texttt{x} is created, than assigned an Integer of value 0. Then a loop is
-executed. To better understand the example, figure \ref{fig:block_whileTrue} shows the implementation of method \texttt{whileTrue:} in a
+executed. To better understand the example, figure \ref{fig:block_whileTrue} shows the implementation of method \texttt{whileTrue:} in the
 \texttt{Block} class.
 
 \begin{figure}[h!]
@@ -454,7 +463,7 @@ This gets executed until the variable \texttt{x} holds a value 5. By then, the \
 \texttt{false}, therefore \texttt{ifFalse:} is sent to a different object. The argument is the block type, its home context
 is the \texttt{whileTrue:} method context.
 
-State of the execution environment upon this \texttt{ifFalse:} message send is depicted on figure .
+State of the execution environment upon this \texttt{ifFalse:} message send is depicted on figure \ref{fig:nlreturn_ctx_1}.
 \begin{figure}[h!]
 	\centering
 	\includegraphics[width=\linewidth]{media/nlreturn_ex1.png}
@@ -511,8 +520,8 @@ prints out exiting message. The output of the program is on figure \ref{fig:nlre
 	\label{fig:nlreturn_2_output}
 \end{figure}
 
-As is evident from the program output, the excution stops after the third step of the iteration. The expression
-following the iteration block is also not executed. When taking a look at the block contexts, it is clear why it is.
+As is evident from the program output, the execution stops after the third step of the iteration. The expression
+following the iteration block is also not executed. When taking a look at the block contexts, it is clear why it is so.
 
 \begin{figure}[h!]
 	\centering
@@ -524,7 +533,7 @@ following the iteration block is also not executed. When taking a look at the bl
 There are multiple methods being called before the block is executed. With block in variable \texttt{lBlock}, the
 block's home context plays little role -- after the block is executed, simple return is performed (from the method
 \texttt{value}). With \texttt{nlBlock}, non local return is performed after evaluation -- meaning the execution jumps
-out of the home context of the block -- which means the end execution of the program.
+out of the home context of the block -- which means the end of execution of the program.
 
 As stated earlier, the non local returns offer a great way to write more compact and readable code. There are some
 pitfalls to be aware of. The nature of the non local returns means that it is not always obvious where the execution
@@ -555,7 +564,7 @@ The last example serves to demonstrate how a created block can attempt to exit a
 
 Execution of this program will result in a runtime error. Both of the blocks are created in the context belonging to the method
 \texttt{createBlocks}. While it may seem, that at least \texttt{block1} could be executed as the evaluation of that block
-returns to the main method. However, none of the blocks can be evaluated in this case and the reason becomes clear with a 
+returns to the main method. However, none of the blocks can be evaluated in this case and the reason becomes more clear with a 
 slight modification to the \texttt{createBlocks} method, as seen on figure \ref{fig:nlreturn_3_2}.
 
 \begin{figure}[h!]
@@ -674,20 +683,20 @@ of the given step of the iteration.
 \end{figure}
 
 \subsection{While loops}
-While loops are implemented as a unary message sent to a block that returns a boolean value. There are actually
-two messages, \texttt{whileTrue} and \texttt{whileFalse}. The first one repeats the evaluation of a receiver (a block)
-as long as it returns \texttt{true}. The second one, as the name suggests, does the same thing if the block returns
-\texttt{false} value. Example in figure \ref{lst-while} shows printing numbers from 0 to 10 using \texttt{whileTrue}
+While loops are implemented as a keyword message sent to a block that returns a boolean value. There are actually
+two messages, \texttt{whileTrue:} and \texttt{whileFalse:}. The first one repeats the evaluation of an argument (a block)
+as long as the receiver returns \texttt{true}. The second one, as the name suggests, does the same thing if the receiver returns
+\texttt{false} value. Example in figure \ref{lst-while} shows printing numbers from 0 to 10 using \texttt{whileTrue:}
 message.
 
 \begin{figure}[h!]
 	\begin{lstlisting}[language=Smalltalk]
 		| index |
 		index := 0.
-		[ index asString printLn.
-		index := index + 1.
-		index < 10
-		] whileTrue
+		[ index < 10 ] whileTrue: [
+			index printLn.
+			index := index + 1
+		]
 	\end{lstlisting}
 	\caption{Example of while loops.}
 	\label{lst-while}
@@ -701,13 +710,11 @@ Single inheritance permits only one superclass per class. The superclass can be 
 every class is a subclass of special Object class. This therefore means that every object is an instance of the Object class
 or its subclass.
 
-Tied with inheritance is a principle of late binding. The method to invoke is decided during runtime. The method lookup is simple
--- it follows the chain of inheritance, from the subclass to superclass (always ending at Object class). 
-
-\section{Abstract syntax tree}
+Tied with inheritance is a principle of late binding. The method to invoke is decided during runtime by name (the message selector). 
+The method lookup is simple -- it follows the chain of inheritance, from the subclass to superclass (always ending at Object class). 
 
 \section{Bytecode}
-The next step after constructing the AST is to compile it into a bytecode. The bytecode is saved in a binary file that can be
+The solution uses a bytecode as an intermediary form to represent a program. The bytecode is saved in a binary file that can be
 interpreted. The structure of bytecode files and semantics and syntax of operation codes is described in the following sections.
 
 \subsection{Program structure}
@@ -733,7 +740,7 @@ All entities in the constant pool are one of these types:
 	\item \textbf{Method entity} represents a method of an object. It holds and index to a string representing the selector,
 		number of arguments (arity of the corresponding message), number of local variables and an array of instructions.
 	\item \textbf{Primitive entity} is a method that needs an implementation in the VM. These are used to handle constructs that
-		cannot be expressed in the base language. 
+		cannot be expressed in the SOM language. 
 	\item \textbf{Block entity} is a block of code. It holds the number of arguments and an array of instructions (similar
 		to a method).
 	\item \textbf{Class entity} represents the structure of objects. It consists of an array of indices to all the fields
@@ -763,7 +770,7 @@ All entities in the constant pool are one of these types:
 		to return to is retrieved from the current frame, then the frame is popped and execution jumps to an instruction
 		after the \texttt{CALL} that invoked the method.
 	\item \texttt{RETNL i} - non local return. The value at the top of the current frame is used as the return value. Argument
-		\texttt{i} specifies the number of frames to be popped, then the return value is pushed to the top of the current frame.
+		\texttt{i} specifies the type of non local return.
 \end{itemize}
 
 \section{Garbage collection}
@@ -777,6 +784,7 @@ its simplicity. The expectation is that this algorithm will not be particularly 
 improvements and it can be used as a demonstration of performance effects of a garbage collector.
 
 \subsection{Mark and sweep}
+\label{subsection:mark_and_sweep}
 According to \cite{gc-ms}, the algorithm consists of two main phases:
 \begin{itemize}
 	\item Mark phase -- discovery of all the reachable objects.
@@ -786,7 +794,7 @@ According to \cite{gc-ms}, the algorithm consists of two main phases:
 Every object allocated on the heap holds a mark bit. This represents the reachability of the object -- 0 (false) for
 unreachable, 1 (true) for reachable. Upon object creation, the mark bit is set to zero. In the sweep phase a simple
 graph traversal algorithm can be used (such as DFS -- Depth First Search) to mark all the reachable objects. Every
-objects can be considered a node and variables serve as neighbour lists. Root nodes would be local variable and fields
+object can be considered a node and variables serve as neighbour lists. Root nodes would be local variables and fields
 that are directly accessible.
 
 In the sweep phase, the whole heap can be traversed linearly and objects with mark bit set to zero are deleted. As the \cite{gc-ms}
@@ -840,7 +848,7 @@ One linear traversal over objects can then remove all of the unmarked ones (figu
 \chapter{Realisation}
 
 \section{Program overview}
-The program I have implemented provides a way to compile SOM source code and execute it.
+The implemented program provides a way to compile SOM source code and execute it.
 
 \begin{figure}[h!]
 	\centering
@@ -871,15 +879,16 @@ variable or with its path specified in the root \texttt{CMakeLists.txt} file. Th
 \begin{itemize}
 	\item downloads the ANTLR runtime from GitHub,
 	\item uses the ANTLR executable to generate the parser and visitors from grammar files,
-	\item compiles and links the project into and executable.
+	\item compiles and links the project into an executable.
 \end{itemize}
 
 \section{Source code parsing}
 The first step of executing the source code is lexical and syntactical analysis. There are multiple solutions to streamline the
-implementation of parsers. For this project, I chose ANTLR (ANother Tool for Lnaguage Recognition). It is a tool that is able
+implementation of parsers. For this project, ANTLR is used (ANother Tool for Language Recognition). It is a tool that is able
 to generate a parser from a formal grammar defined for a language.
 
-Grammar for SOM is defined in two files -- \texttt{SOMLexer.g4} and \texttt{SOMParser.g4}. These contain rules definitions for
+Grammar for SOM is defined in two files -- \texttt{SOMLexer.g4} and 
+\texttt{SOMParser.g4}. These contain rules definitions for
 lexer and parser respectively. Every rule in the grammar has its name and definition.
 
 Lexer rule names always start with an uppercase letter. These are the rules that form a foundation for the subsequent parser rules.
@@ -920,7 +929,7 @@ any characters between quotation marks. Format of identifiers is also defined he
 and numerical values are also defined here.
 
 Parser rules are where the structure of the source code comes in. Parser rules are defined in file \texttt{SOMParser.g4}. They
-help build the abstract syntax tree (or at least reflect the strucutre of the AST to some degree). For reference, excerpts of
+help build the abstract syntax tree (or at least reflect the strucutre of the AST to some degree) \cite{antlr-basics}. For reference, excerpts of
 parser rules are demonstrated on figures \ref{fig:antlr_classdef} and \ref{fig:antlr_blocks}.
 
 \begin{figure}[h!]
@@ -986,9 +995,6 @@ types of patterns:
 		value of the keyword, always ending in colon (:).
 \end{itemize}
 
-
-  
-
 \textbf{Variable} node represents instance/class side variables, arguments to messages or blocks. It holds the identifier of the variable as a string value.
 
 \textbf{Block} represents a block of executable code with its own scope. The simplest block consists of local variable definitions and an array of
@@ -1011,7 +1017,7 @@ There are four AST nodes that can be classified as a primary:
 	\item \textbf{Nested term} is an expression that needs to be evaluated to retrieve the reference to an object. Syntactically, the nested terms
 		are enclosed in parentheses.
 	\item \textbf{Nested block} is a block of expressions returning the reference to an object. It is enclosed in square brackets in the syntax.
-		Nested blocks consist of the same elements as block discussed with methods with addition of a block pattern -- nested block can have their arguments. %TODO: reference the section where blocks are discussed
+		Nested blocks consist of the same elements as block discussed with methods with addition of a block pattern -- nested block can have their arguments.
 \end{itemize}
 
 The second part of the evaluation node is the message sends to the primary. There are three types corresponding to three types of messages in SOM.
@@ -1038,7 +1044,7 @@ Consider the following expressions:
 \end{figure}
 
 Expression 1 is a keyword message send to a variable \texttt{receiver1}, with arguments as sub-expressions. The AST produced for this expression is
-on figure .
+on figure \ref{fig:ast_const_ex_1}.
 
 \begin{figure}[h!]
 	\centering
@@ -1049,7 +1055,7 @@ on figure .
 
 \subsection{AST construction}
 The AST is constructed by visiting over the ANTLR--generated parse tree. The visitor is implemented in class \texttt{CParseTreeConverter}. This is a subclass
-of \texttt{SOMParserBaseVisitor}, which is a base visitor implementation provided by ANTLR that perform depth--first traversal over the parse tree. Some member
+of \texttt{SOMParserBaseVisitor}, which is a base visitor implementation provided by ANTLR that performs depth--first traversal over the parse tree. Some member
 functions in \texttt{CParseTreeConverter} are not overriden and make use of this default behaviour (which is just iterating over child nodes and visiting them).
 
 ANTLR also provides an abstract class that defines the interface of a visitor over a parse tree. Every member function of the visitor returns a special value --
@@ -1117,8 +1123,8 @@ is encountered during this, it is resolved as:
 		the index \texttt{i} of the value is then used in the resulting \texttt{GET SLOT i} instruction.
 \end{itemize}
 
-Handling of literal values is strightforward -- the value is registered in the constants pool and \texttt{LIT} instruction is returned. String delimiters are stripped
-from the value in this step.
+Handling of literal values is straightforward -- the value is registered in the constants pool and \texttt{LIT} instruction is returned. String delimiters are stripped
+from the quotations in this step.
 
 \section{Interpretation}
 The process of interpreting the loaded bytecode is handled by class \texttt{CInterpret}. The class diagram of the interpretation environment is
@@ -1132,11 +1138,17 @@ following sections.
 	\label{fig:interpret_classDiagram}
 \end{figure}
 
+\subsection{Garbage collection}
+The process of garbage collection is a part of the interpretation loop. The algorithm used is mark and sweep (described in subsection \ref{subsection:mark_and_sweep}).
+There is no mechanism implemented to explicitly trigger garbage collection. As running the process after each executed instruction would
+have a potential of slowing the execution down, the garbage collection is triggered after every context switch. 
+
 \subsection{Program counter}
 The class \texttt{CProgramCounter} is an implementation for a program counter for the VM. During initialization of this object, the entry point of the program is loaded.
 The program counter also saves the "end" address. The addresses are implemented as iterators to a vector of instructions -- that is possible simply because all of the
-executable code will be contained within a method, and all the method are loaded into a vector of instructions. The entry point of the program is therefore the first
-instruction of the \texttt{run} method, while "end" address is the end iterator of the same vector. This means that the end address is not an executable instruction.
+executable code will be contained within a method, and all the method instructions are loaded into a vector of instructions. The entry point of the program is therefore the first
+instruction of the \texttt{run} method, while "end" address is the end iterator of the same vector. This means that the end address is not an executable instruction
+(nor it is a dereferenceable iterator).
 
 \subsection{Execution stack}
 The execution stack is responsible for management of method calls (and nested block evaluations). It is implemented as a LIFO (last in, first out) structure.
@@ -1169,7 +1181,7 @@ Every object created during runtime (implicitly or explicitely) is represented b
 class or its subclass. Every object holds a pointer to its class and a map of the instance values -- the identifier as a key, object pointers as a value. Upon creation,
 instance field values are initialize to the \texttt{nil} value.
 
-Every class is represented by a \texttt{VMClass} instance, which is a subclass of \texttt{VMObject}. This allows us to manipulate every class as an object. There
+Every class is represented by a \texttt{VMClass} instance, which is a subclass of \texttt{VMObject}. This allows every class to be manipulated as an object. There
 is only one class instance per class definition during runtime and instantiating new class object is not possible. Before the execution of the code, the bytecode
 is traversed and for every \texttt{CLASS} value, a singleton object is created and initialized. These objects are accessible globally by the identifier -- the class name.
 
@@ -1202,7 +1214,7 @@ the argument passing, as well as scoping of local variables when sending message
 When the new frame is created, multiple actions take place:
 \begin{itemize}
 	\item Return address on the frame is set to the instruction following the \texttt{SEND} instruction. As every block of code must end
-		with return (simple or non -- local), the existence of the address is guaranteed.
+		with return (local or non local), the existence of the address is guaranteed.
 	\item The array of arguments is initialized. Arguments had been pushed to the stack in the order of corresponding keywords (therefore
 		left to right). As a result, the arguments are reversed in the actual array -- member functions access them from the back. The
 		last argument is set to the reciever -- that is the object accessed by \texttt{self} keyword (comparable to \texttt{this} pointer in
@@ -1263,9 +1275,8 @@ void VMString::concatenate(CInterpret* interpret) {
 \end{figure}
 
 The method takes one string argument and returns the concatenation of \texttt{self} and argument. The member function itself does not return anything,
-it only manipulates the interpret environment. The objects are retrieved from the current frame of the execution stack and the result is returned
+it only manipulates the interpreter environment. The objects are retrieved from the current frame of the execution stack and the result is returned
 as the top value on the current frame.
-
 
 \subsection{Strings}
 Every literal string value is represented by an instance of \texttt{String} class during runtime. The corresponding class implementing the primitives is
@@ -1275,16 +1286,42 @@ This approach can however lead to inefficiencies when constructing strings. To c
 be implemented, similar to streams.
 
 When looking at String implementation, there is a big difference to how they are implemented in SOM and Smalltalk. When a string object
-is created in Smalltalk, it is handled as an object with indexed fields, each containing a character. My implementaion of SOM does not
+is created in Smalltalk, it is handled as an object with indexed fields, each containing a character. Provided implementaion of SOM does not
 conform to this, as strings are simply handled in the VM runtime. Possible extension of the language could be developed, allowing for
 creation of objects with indexed fields.
 
-This could be the applied to arrays, thus creating a unified ways to handle collections.
+This could be then applied to arrays, thus creating a unified ways to handle collections.
 
 \subsection{Booleans}
 The core library also provides an implementation of boolean values. The two values are implemented as separate classes (\texttt{True} and \texttt{False})
 with a common superclass (\texttt{Boolean}). The runtime then provides a globally accessible instances of these two classes under the identifiers
 \texttt{true} and \texttt{false}.
+
+\subsection{Array}
+Array object implementation is also provided in the core library. Array class implements messages for element access and iteration over
+elements. Internally, every array object holds a \texttt{std::vector} containing pointer to the element.
+
+\subsection{Nil}
+This class implements a special type of object, signifying an empty value. There is only one instance of this class during runtime,
+accessible globally under \texttt{nil} identifier. This object is used to initialize variables (locals, instance fields etc.) that
+are not otherwise initialized.
+\begin{figure}
+	\centering
+	\begin{lstlisting}[language=Smalltalk]
+		Nil = (
+			asString = ( ^'nil' )
+			isNil = ( ^true )
+    		notNil = ( ^false )
+
+    		ifNil: aBlock = ( ^aBlock value )
+    		ifNotNil: aBlock = ( ^self )
+    		ifNil: goBlock ifNotNil: noGoBlock = ( 
+				^goBlock value )
+		)
+	\end{lstlisting}
+	\caption{Implementation of \texttt{Nil} class in core library.}
+	\label{fig:nil_impl}
+\end{figure}
 
 \subsection{Blocks}
 As blocks are treated as any other objects in SOM, there needs to be a class implemented for them. Every block in the program is 
@@ -1323,7 +1360,7 @@ initialized with a special primitive value (struct \texttt{BlockContext}), holdi
 	\item a pointer to the home context of the block (pointer to the stack frame corresponding with the method that created the block).
 \end{itemize}
 
-\subsubsection{Evaluation}
+\section{Block evaluation}
 What happens upon the evaluation of the block is as follows:
 \begin{itemize}
 	\item The message \texttt{value} (or any variant with arguments) is sent to a block object. This is dispatched using standard method
@@ -1380,7 +1417,7 @@ In this case, local return address and standard return address are the same, bec
 This does not always has to be the case. In the example, the local return address is used as the block does not perform non local
 return.
 
-\subsubsection{Argument handling}
+\subsection{Argument handling}
 Every block can require arbitrary number of arguments in order to be evaluated. Given that blocks are executed inside already existing
 contexts (with possible existing arguments), this needs to be handled on two levels:
 \begin{itemize}
@@ -1390,7 +1427,7 @@ contexts (with possible existing arguments), this needs to be handled on two lev
 		They then have to be removed as to not be accessible from the original method.
 \end{itemize}
 
-\subsubsection{Block restart}
+\subsection{Block restart}
 In order to achieve a possibility of iteration without the need of recursive calls, \texttt{Block} class implements a special \texttt{restart} method.
 The method is implemented as primitive and is used in core library. When writing programs in SOM, the programmer should use existing messages aimed at
 providing iteration functionality, thus the use of this message outside of core library is not recommended.
@@ -1404,12 +1441,12 @@ Implementation itself is pretty simple:
 \end{itemize}
 
 \section{Performance}
-To see, how a basic SOM runtime implementation compares to other SOM implementations and some fully featured programming languages, I performed
-a small set of benchmarks. With each one, I provide an implementation code snippet.
+To see, how a basic SOM runtime implementation compares to other SOM implementations and some fully featured programming languages, a small set of
+benchmarks was performed. With each one, an implementation code snippet is provided.
 
 \subsection{Fibonacci sequence}
 The first test is calculating a specific position in the Fibonacci sequence. Even though linear complexity is easy to achieve, for the purposes
-of the benchmark, I will use the recursive approach. This will result in lot of redundant computations, yielding $\mathcal{O}(2 ^ n)$
+of the benchmark, recursive approach is used. This will result in lot of redundant computations, yielding $\mathcal{O}(2 ^ n)$
 time complexity and resulting in easily measurable execution times.
 
 The conditions of the time measurements are as follows:
@@ -1485,11 +1522,14 @@ The results are displayed at figure . As expected, my interpreter of SOM is slow
 	\label{fig:fib_chart}
 \end{figure}
 
-When compared to other SOM implementations, the difference are smaller, though my implementation is still the slowest. I assume this is
+When compared to other SOM implementations, the differences are smaller, though CppSOM implementation is still the slowest. The assumption is that this is
 due to the fact that no optimizations (during compilation or during runtime) are implemented. 
 
 Figure \ref{fig:fib_chart_2} shows comparison with the first Java implementation of SOM, along with the Python one (PySOM). The latter has an option of two types
-of interpreters -- bytecode interpreter and AST interpreter. Both options have been tested and the results are shown.
+of interpreters -- bytecode interpreter and AST interpreter. Both options have been tested and the results are shown. I have also included a bytecode
+interpreter written in Rust -- SOM-RS along with SOM++ (reference C++ implementation).
+
+I have decided not to include CSOM (C implementation) in the comparison, as it failed to parse SOM source files other implementations did. 
 
 \begin{figure}
 	\centering
@@ -1499,11 +1539,11 @@ of interpreters -- bytecode interpreter and AST interpreter. Both options have b
 \end{figure}
 
 \subsection{While loop}
-It is pretty apparent that further comparisons of SOM performance to traditional, fully featured programming languages has purpose. In the
+It is pretty apparent that further comparisons of SOM performance to traditional, fully featured programming languages have no purpose. In the
 next test, I will compare how a very basic language feature performs across the tested SOM implementations.
 
 The program consists of a simple while loop, iterating and incrementing a local variable two million times. The SOM source code (same for all
-implementations) is on figure .
+implementations) is on figure \ref{fig:code_while_bench}.
 \begin{figure}[h!]
 	\centering
 	\begin{lstlisting}[language=Smalltalk]
@@ -1578,10 +1618,6 @@ In the third test, I take a look at performance of non local returns. The code t
 	\label{fig:code_nlret_bench}
 \end{figure}
 
-The results on figure \ref{fig:nlret_chart} show a trend of PySOM implementation being the fastest one tested.
-The Java implementation is then second, while my provided implementation seems to be on average around two time slower
-than that.
-
 \begin{figure}
 	\centering
 	\includegraphics[width=\textwidth]{media/nlret_chart_1.png}
@@ -1589,27 +1625,12 @@ than that.
 	\label{fig:nlret_chart}
 \end{figure}
 
-\section{Possible improvements}
-The provided solution offers basic functionality to execute SOM programs. It can be further built upon and improved in several ways.
-As demonstrated in the benchmarking section, the performance is lackluster compared to existing solutions. I will propose a few
-solutions, that could be implemented in the future to remedy this.
-
-\subsection{Bytecode}
-Provided solution utilises a custom design bytecode, based on SOM/Smalltalk bytecode. An alternate compiler could be built, utilising
-an existing bytecode with existing VM implementation. 
-
-\subsection{Garbage collection}
-Implemented garbage collection algorithm is a fairly basic one. An interesting addition would be the implementation of more advanced GC
-algorithms (such as reference counting or generational collection). Other possible improvements to GC could be the implementation
-of concurrent mark and sweep to shorten the execution pauses.
-
-
 \setsecnumdepth{part}
 \chapter{Conclusion}
-In my thesis, I provided an overview of the syntax and core principles of the Simple Object Machine programming language. I have put
+The thesis provided an overview of the syntax and core principles of the Simple Object Machine programming language. It put
 the language in the context of Smalltalk, on which SOM is based.
 
-I provided a basic implementation of a virtual machine to execute SOM programs. The solution parses the source files, compiles them into
+It provides a basic implementation of a virtual machine to execute SOM programs. The solution parses the source files, compiles them into
 bytecode and is then able to load the compiled bytecode and execute it. The thesis provides the description of abstract syntax tree design,
 as well as bytecode design and its implementation. 
 
@@ -1620,6 +1641,19 @@ algorithms are the first things that come to mind.
 On the other hand, this relatively small implementation offers an advantage of providing an easy to get into playground for people that
 want to experiment with runtime systems. The clear separation of every step of compilation/execution allows faster understanding of the
 functioning, as well as ability to easily modify or completely change the parser, compiler or interpreter.
+
+\subsection{Future work}
+The provided solution offers basic functionality to execute SOM programs. It can be further built upon and improved in several ways.
+As demonstrated in the benchmarking section, the performance is lackluster compared to existing solutions. I will propose a few
+solutions, that could be implemented in the future to remedy this.
+
+Provided solution utilises a custom design bytecode, based on SOM/Smalltalk bytecode. An alternate compiler could be built, utilising
+an existing bytecode with existing VM implementation. 
+
+Implemented garbage collection algorithm is a fairly basic one. An interesting addition would be the implementation of more advanced GC
+algorithms (such as reference counting or generational collection). Other possible improvements to GC could be the implementation
+of concurrent mark and sweep to shorten the execution pauses.
+
 
 \bibliographystyle{iso690}
 \bibliography{mybibliographyfile}
@@ -1632,6 +1666,7 @@ functioning, as well as ability to easily modify or completely change the parser
 \begin{description}
 	\item[AST] Abstract syntax tree
 	\item[GC] Garbage collector
+	\item[OOP] Object Oriented Programming 
 	\item[SOM] Simple Object Machine 
 	\item[VM] Virtual machine 
 \end{description}
